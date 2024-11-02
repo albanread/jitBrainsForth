@@ -45,6 +45,23 @@ struct DoLoopLabel
 
 inline std::stack<DoLoopLabel> doLoopStack;
 
+struct BeginAgainRepeatUntilLabel
+{
+    asmjit::Label beginLabel; // Label for BEGIN
+    asmjit::Label againLabel; // Label for AGAIN
+    asmjit::Label repeatLabel; // Label for REPEAT
+    asmjit::Label untilLabel; // Label for UNTIL
+    asmjit::Label whileLabel; // Label for WHILE
+    asmjit::Label leaveLabel; // Label for LEAVE
+    bool hasAgain; // Flag if AGAIN is present
+    bool hasRepeat; // Flag if REPEAT is present
+    bool hasUntil; // Flag if UNTIL is present
+    bool hasWhile; // Flag if WHILE is present
+    bool hasLeave; // Flag if LEAVE is present
+};
+
+// Stack to manage the BEGIN..AGAIN REPEAT..UNTIL BEGIN WHILE AGAIN loop structures
+inline std::stack<BeginAgainRepeatUntilLabel> beginAgainRepeatUntilStack;
 
 inline JitContext& jc = JitContext::getInstance();
 inline ForthDictionary& d = ForthDictionary::getInstance();
@@ -408,7 +425,7 @@ public:
         return new_func;
     }
 
-    static bool gen_do()
+    static void gen_do()
     {
         if (!jc.assembler)
         {
@@ -441,10 +458,9 @@ public:
         a.bind(doLoopLabel.doLabel);
         // push loop label to doLoopStack
         doLoopStack.push(doLoopLabel);
-        return true;
     }
 
-    static bool gen_loop()
+    static void gen_loop()
     {
         if (!jc.assembler)
         {
@@ -498,12 +514,10 @@ public:
         popRS(currentIndex);
         popRS(limit);
         a.nop(); // no-op
-
-        return true;
     }
 
 
-    static bool gen_plus_loop()
+    static void gen_plus_loop()
     {
         if (!jc.assembler)
         {
@@ -553,11 +567,9 @@ public:
         a.nop(); // no-op
 
         // Clean up loop stack
-
-        return true;
     }
 
-    static bool gen_leave()
+    static void gen_leave()
     {
         if (!jc.assembler)
         {
@@ -579,11 +591,9 @@ public:
         // the code at leave tidies up the return stack.
         a.comment(" ; Jumps to the leave label");
         a.jmp(loopLabel.leaveLabel);
-
-        return true;
     }
 
-    static bool gen_I()
+    static void gen_I()
     {
         if (!jc.assembler)
         {
@@ -606,11 +616,9 @@ public:
 
         a.comment(" ; Push currentIndex onto DS");
         pushDS(currentIndex);
-
-        return true;
     }
 
-    static bool gen_J()
+    static void gen_J()
     {
         if (!jc.assembler)
         {
@@ -633,11 +641,9 @@ public:
 
         a.comment(" ; Push outerCurrentIndex onto DS");
         pushDS(outerCurrentIndex);
-
-        return true;
     }
 
-    static bool gen_K()
+    static void gen_K()
     {
         if (!jc.assembler)
         {
@@ -660,62 +666,142 @@ public:
 
         a.comment(" ; Push outermostCurrentIndex onto DS");
         pushDS(outermostCurrentIndex);
-
-        return true;
     }
 
-    /*
-
-
-    static bool gen_recurse()
+    static void gen_begin()
     {
         if (!jc.assembler)
         {
-            throw std::runtime_error("gen_recurse: Assembler not initialized");
+            throw std::runtime_error("gen_begin: Assembler not initialized");
         }
 
         auto& a = *jc.assembler;
-        a.comment(" ; ----- gen_recurse");
+        a.comment(" ; ----- gen_begin");
         a.nop();
 
-        // Retrieve the FUNCTION_ENTRY label of the current word
+        BeginAgainRepeatUntilLabel beginLabel;
+        beginLabel.beginLabel = a.newLabel();
+        beginLabel.hasAgain = false;
+        beginLabel.hasRepeat = false;
+        beginLabel.hasUntil = false;
+        beginLabel.hasWhile = false;
+        beginLabel.hasLeave = false;
 
-        if (!functionEntryLabel.isValid())
-        {
-            throw std::runtime_error("gen_recurse: FUNCTION_ENTRY label is invalid or undefined");
-        }
-
-        // call FUNCTION_ENTRY label to recurse
-        a.call(functionEntryLabel);
-
-        return true;
+        a.bind(beginLabel.beginLabel);
+        beginAgainRepeatUntilStack.push(beginLabel);
     }
 
-
-    static bool gen_tail_recurse()
+    static void gen_again()
     {
         if (!jc.assembler)
         {
-            throw std::runtime_error("gen_recurse: Assembler not initialized");
+            throw std::runtime_error("gen_again: Assembler not initialized");
+        }
+
+        if (beginAgainRepeatUntilStack.empty())
+        {
+            throw std::runtime_error("gen_again: beginAgainRepeatUntilStack is empty");
         }
 
         auto& a = *jc.assembler;
-        a.comment(" ; ----- gen_recurse");
+        a.comment(" ; ----- gen_again");
         a.nop();
 
-        // Retrieve the FUNCTION_ENTRY label of the current word
+        auto beginLabel = beginAgainRepeatUntilStack.top();
+        beginAgainRepeatUntilStack.pop();
 
-        if (!functionEntryLabel.isValid())
+        beginLabel.againLabel = a.newLabel();
+        beginLabel.hasAgain = true;
+        a.jmp(beginLabel.beginLabel);
+        a.bind(beginLabel.againLabel);
+    }
+
+    static void gen_repeat()
+    {
+        if (!jc.assembler)
         {
-            throw std::runtime_error("gen_tail_recurse: FUNCTION_ENTRY label is invalid or undefined");
+            throw std::runtime_error("gen_repeat: Assembler not initialized");
         }
 
-        // Jump to the FUNCTION_ENTRY label to recurse
-        a.jmp(functionEntryLabel);
+        if (beginAgainRepeatUntilStack.empty())
+        {
+            throw std::runtime_error("gen_repeat: beginAgainRepeatUntilStack is empty");
+        }
 
-        return true;
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- gen_repeat");
+        a.nop();
+
+        auto beginLabel = beginAgainRepeatUntilStack.top();
+        beginAgainRepeatUntilStack.pop();
+
+        beginLabel.repeatLabel = a.newLabel();
+        beginLabel.hasRepeat = true;
+        a.jmp(beginLabel.beginLabel);
+        a.bind(beginLabel.repeatLabel);
     }
-    */
+
+    static void gen_until()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("gen_until: Assembler not initialized");
+        }
+
+        if (beginAgainRepeatUntilStack.empty())
+        {
+            throw std::runtime_error("gen_until: beginAgainRepeatUntilStack is empty");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- gen_until");
+        a.nop();
+
+        auto beginLabel = beginAgainRepeatUntilStack.top();
+        beginAgainRepeatUntilStack.pop();
+
+        asmjit::x86::Gp topOfStack = asmjit::x86::rax;
+
+        popDS(topOfStack);
+        a.comment(" ; Jump back to beginLabel if top of stack is zero");
+        a.test(topOfStack, topOfStack);
+        a.jz(beginLabel.beginLabel);
+
+        beginLabel.untilLabel = a.newLabel();
+        beginLabel.hasUntil = true;
+        a.bind(beginLabel.untilLabel);
+    }
+
+    static void gen_while()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("gen_while: Assembler not initialized");
+        }
+
+        if (beginAgainRepeatUntilStack.empty())
+        {
+            throw std::runtime_error("gen_while: beginAgainRepeatUntilStack is empty");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- gen_while");
+        a.nop();
+
+        auto beginLabel = beginAgainRepeatUntilStack.top();
+        beginLabel.whileLabel = a.newLabel();
+        beginLabel.hasWhile = true;
+
+        asmjit::x86::Gp topOfStack = asmjit::x86::rax;
+
+        popDS(topOfStack);
+        a.comment(" ; Conditional jump to whileLabel if top of stack is zero");
+        a.test(topOfStack, topOfStack);
+        a.jz(beginLabel.whileLabel);
+
+        beginAgainRepeatUntilStack.pop();
+        beginAgainRepeatUntilStack.push(beginLabel);
+    }
 
 
     static void genIf()
@@ -748,10 +834,9 @@ public:
         // Conditional jump to either the ELSE or THEN location
         a.test(flag, flag);
         a.jz(branches.ifLabel);
-
     }
 
-    static bool genElse()
+    static void genElse()
     {
         if (!jc.assembler)
         {
@@ -770,10 +855,9 @@ public:
         branches.hasElse = true;
         branchStack.pop();
         branchStack.push(branches);
-        return true;
     }
 
-    static bool genThen()
+    static void genThen()
     {
         if (!jc.assembler)
         {
@@ -801,10 +885,10 @@ public:
             a.bind(branches.ifLabel);
         }
         branchStack.pop();
-        return true;
     }
 
-    static bool gen_exit()
+
+    static void gen_exit()
     {
         if (!jc.assembler)
         {
@@ -815,169 +899,54 @@ public:
         a.comment(" ; ----- gen_exit");
         a.nop();
 
-        // check if functionsStack is empty
-        if (functionsStack.empty())
+        // First, check if there is any BEGIN... construct to exit from
+        if (!beginAgainRepeatUntilStack.empty())
         {
-            throw std::runtime_error("gen_exit: functionsStack is empty");
+            auto label = beginAgainRepeatUntilStack.top(); // Ensure this is not a const object
+
+            // Depending on the construct, jump to the appropriate label
+            if (label.hasAgain)
+            {
+                a.comment(" ; ---- again exit");
+                a.jmp(label.againLabel);
+            }
+            else if (label.hasRepeat)
+            {
+                a.comment(" ; ---- repeat exit");
+                a.jmp(label.repeatLabel);
+            }
+            else if (label.hasUntil)
+            {
+                // Bind a new label for `UNTIL` and jump there (needed to handle UNTIL case correctly)
+                label.untilLabel = a.newLabel();
+                a.comment(" ; ---- until exit");
+                a.jmp(label.untilLabel);
+            }
+            else if (label.hasWhile)
+            {
+                a.comment(" ; ---- while exit");
+                a.jmp(label.whileLabel);
+            }
+            else
+            {
+                throw std::runtime_error("gen_exit: No appropriate label found in beginAgainRepeatUntilStack");
+            }
+
+            // Pop the loop construct as we are exiting it
+            beginAgainRepeatUntilStack.pop();
+        } // If not within a loop, check for function exit
+        else if (!functionsStack.empty())
+        {
+            a.comment(" ; ---- function exit");
+            const auto& label = functionsStack.top();
+            a.jmp(label.exitLabel);
         }
-
-        const auto& label = functionsStack.top();
-        a.jmp(label.exitLabel);
-
-        return true;
+        else
+        {
+            throw std::runtime_error("gen_exit: No loop or function to exit from");
+        }
     }
 
-
-    /*
-    static bool gen_begin()
-    {
-        if (!jc.assembler)
-        {
-            throw std::runtime_error("gen_begin: Assembler not initialized");
-        }
-
-        auto& a = *jc.assembler;
-        a.comment(" ; ----- gen_begin");
-        a.nop();
-
-        // Create a label for the BEGIN loop start
-
-
-        return true;
-    }
-
-    static bool gen_again()
-    {
-        if (!jc.assembler)
-        {
-            throw std::runtime_error("gen_again: Assembler not initialized");
-        }
-
-
-
-        if (!beginLabel.isValid())
-        {
-            throw std::runtime_error("gen_again: Begin label is invalid or undefined");
-        }
-
-        auto& a = *jc.assembler;
-        a.comment(" ; ----- gen_again");
-        a.nop();
-
-        // Jump back to the BEGIN label
-        a.jmp(beginLabel);
-
-
-
-
-        return true;
-    }
-
-
-    static bool gen_repeat()
-    {
-        if (!jc.assembler)
-        {
-            throw std::runtime_error("gen_repeat: Assembler not initialized");
-        }
-
-        asmjit::Label beginLabel;
-
-        // Try to get the BEGIN label
-        try
-        {
-
-        }
-        catch (const std::runtime_error&)
-        {
-            throw std::runtime_error("gen_repeat: Failed to find BEGIN label");
-        }
-
-        auto& a = *jc.assembler;
-        a.comment(" ; ----- gen_repeat");
-        a.nop();
-
-        // Jump back to the BEGIN label
-        a.jmp(beginLabel);
-
-        // Pop the BEGIN label since we're done with it
-
-
-        a.comment(" ; ----- REPEAT label");
-
-
-        return true;
-    }
-
-
-    static bool gen_until()
-    {
-
-
-        if (!jc.assembler)
-        {
-            throw std::runtime_error("gen_until: Assembler not initialized");
-        }
-
-        auto& a = *jc.assembler;
-        a.comment(" ; ----- gen_until");
-        a.nop();
-
-        // Use a conditional jump back to the BEGIN label
-        // This will be an example of a conditional jump on a boolean value on top of the stack
-        asmjit::x86::Gp flag = asmjit::x86::rax;
-        popDS(flag);
-        a.test(flag, flag);
-        a.jz(nullptr);
-
-
-
-
-
-
-
-        return true;
-    }
-
-
-    static bool gen_while()
-    {
-        if (!jc.assembler)
-        {
-            throw std::runtime_error("gen_while: Assembler not initialized");
-        }
-
-        asmjit::Label repeatLabel;
-
-        // Try to get the REPEAT label
-        try
-        {
-            repeatLabel = nullptr;
-        }
-        catch (const std::runtime_error&)
-        {
-            throw std::runtime_error("gen_while: Failed to find REPEAT label");
-        }
-
-        auto& a = *jc.assembler;
-        a.comment(" ; ----- gen_while");
-        a.nop();
-
-        // Pop the condition flag from the data stack
-        asmjit::x86::Gp flag = asmjit::x86::rax;
-        popDS(flag);
-
-        // Check the condition and jump to REPEAT label if false
-        a.test(flag, flag);
-        a.jz(repeatLabel);
-
-        // Optionally push WHILE label for documentation or debugging
-        a.comment(" ; ----- WHILE condition start");
-
-
-        return true;
-    }
-*/
     // misc forth generators
 
     static void genSub()
@@ -1224,6 +1193,54 @@ public:
     }
 
 
+    static void genOR()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genOR: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- genOR");
+
+        // Assuming r11 is the stack pointer
+        asmjit::x86::Gp stackPtr = asmjit::x86::r11;
+        asmjit::x86::Gp firstVal = asmjit::x86::rax;
+
+        // Pop two values, perform OR, and push the result
+        a.comment(" ; OR two values and push the result");
+        a.mov(firstVal, asmjit::x86::qword_ptr(stackPtr)); // Load first value
+        a.add(stackPtr, 8); // Adjust stack pointer
+
+        a.or_(firstVal, asmjit::x86::qword_ptr(stackPtr)); // Perform OR with second value
+
+        a.mov(asmjit::x86::qword_ptr(stackPtr), firstVal); // Store result back on stack
+    }
+
+
+    static void genXOR()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genXOR: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- genXOR");
+
+        // Assuming r11 is the stack pointer
+        asmjit::x86::Gp stackPtr = asmjit::x86::r11;
+        asmjit::x86::Gp firstVal = asmjit::x86::rax;
+
+        // Pop two values, perform XOR, and push the result
+        a.comment(" ; XOR two values and push the result");
+        a.mov(firstVal, asmjit::x86::qword_ptr(stackPtr)); // Load first value
+        a.add(stackPtr, 8); // Adjust stack pointer
+
+        a.xor_(firstVal, asmjit::x86::qword_ptr(stackPtr)); // Perform XOR with second value
+
+        a.mov(asmjit::x86::qword_ptr(stackPtr), firstVal); // Store result back on stack
+    }
 
 
     static void genDrop()
@@ -1263,6 +1280,243 @@ public:
         a.sub(stackPtr, 8); // Adjust stack pointer
         a.mov(asmjit::x86::qword_ptr(stackPtr), topValue); // Push duplicated value
     }
+
+    static void genSwap()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genSwap: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- genSwap");
+
+        // Assuming r11 is the stack pointer
+        asmjit::x86::Gp stackPtr = asmjit::x86::r11;
+        asmjit::x86::Gp topValue = asmjit::x86::rax;
+        asmjit::x86::Gp secondValue = asmjit::x86::rcx;
+
+        // Swap the top two values on the stack
+        a.comment(" ; Swap top two values on the stack");
+        a.mov(topValue, asmjit::x86::qword_ptr(stackPtr)); // Load top value
+        a.mov(secondValue, asmjit::x86::qword_ptr(stackPtr, 8)); // Load second value
+        a.mov(asmjit::x86::qword_ptr(stackPtr), secondValue); // Store second value in place of top value
+        a.mov(asmjit::x86::qword_ptr(stackPtr, 8), topValue); // Store top value in place of second value
+    }
+
+    static void genRot()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genRot: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- genRot");
+
+        // Assuming r11 is the stack pointer
+        asmjit::x86::Gp stackPtr = asmjit::x86::r11;
+        asmjit::x86::Gp topValue = asmjit::x86::rax;
+        asmjit::x86::Gp secondValue = asmjit::x86::rcx;
+        asmjit::x86::Gp thirdValue = asmjit::x86::rdx;
+
+        // Rotate the top three values on the stack
+        a.comment(" ; Rotate top three values on the stack");
+        a.mov(topValue, asmjit::x86::qword_ptr(stackPtr)); // Load top value
+        a.mov(secondValue, asmjit::x86::qword_ptr(stackPtr, 8)); // Load second value
+        a.mov(thirdValue, asmjit::x86::qword_ptr(stackPtr, 16)); // Load third value
+        a.mov(asmjit::x86::qword_ptr(stackPtr), secondValue); // Store second value in place of top value
+        a.mov(asmjit::x86::qword_ptr(stackPtr, 8), thirdValue); // Store third value in place of second value
+        a.mov(asmjit::x86::qword_ptr(stackPtr, 16), topValue); // Store top value in place of third value
+    }
+
+
+    static void genOver()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genOver: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- genOver");
+
+        // Assuming r11 is the stack pointer
+        asmjit::x86::Gp stackPtr = asmjit::x86::r11;
+        asmjit::x86::Gp secondValue = asmjit::x86::rax;
+
+        // Duplicate the second value on the stack
+        a.comment(" ; Duplicate the second value on the stack");
+        a.mov(secondValue, asmjit::x86::qword_ptr(stackPtr, 8)); // Load second value
+        a.sub(stackPtr, 8); // Adjust stack pointer
+        a.mov(asmjit::x86::qword_ptr(stackPtr), secondValue); // Push duplicated value
+    }
+
+
+    static void genTuck()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genTuck: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- genTuck");
+
+        // Assuming r11 is the stack pointer
+        asmjit::x86::Gp stackPtr = asmjit::x86::r11;
+        asmjit::x86::Gp topValue = asmjit::x86::rax;
+        asmjit::x86::Gp secondValue = asmjit::x86::rcx;
+
+        // Tuck the top value under the second value on the stack
+        a.comment(" ; Tuck the top value under the second value on the stack");
+        a.mov(topValue, asmjit::x86::qword_ptr(stackPtr)); // Load top value
+        a.mov(secondValue, asmjit::x86::qword_ptr(stackPtr, 8)); // Load second value
+        a.sub(stackPtr, 8); // Adjust stack pointer to make space
+        a.mov(asmjit::x86::qword_ptr(stackPtr), topValue); // Push top value
+        a.mov(asmjit::x86::qword_ptr(stackPtr, 8), secondValue); // Access memory at stackPtr + 8
+        a.mov(asmjit::x86::qword_ptr(stackPtr, 16), topValue); // Access memory at stackPtr + 16
+    }
+
+
+    static void genPick(int n)
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genPick: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- genPick");
+
+        // Assuming r11 is the stack pointer
+        asmjit::x86::Gp stackPtr = asmjit::x86::r11;
+        asmjit::x86::Gp value = asmjit::x86::rax;
+
+        // Pick the nth value from the stack
+        a.comment(" ; Pick the nth value from the stack");
+
+        // Calculate the address offset for the nth element
+        int offset = n * 8;
+
+        a.mov(value, asmjit::x86::qword_ptr(stackPtr, offset)); // Load the nth value
+        a.sub(stackPtr, 8); // Adjust stack pointer for pushing value
+        a.mov(asmjit::x86::qword_ptr(stackPtr), value); // Push the picked value onto the stack
+    }
+
+
+    // Helper function to generate code for pushing constants onto the stack
+    static void genPushConstant(const int value)
+    {
+        auto& a = *jc.assembler;
+        asmjit::x86::Gp stackPtr = asmjit::x86::r11; // Stack pointer register
+        asmjit::x86::Gp tempValue = asmjit::x86::rax; // Temporary register for the constant
+
+        // Load constant into tempValue register
+        a.mov(tempValue, value);
+
+        // Decrement stack pointer to make space
+        a.sub(stackPtr, 8);
+
+        // Push the value onto the stack
+        a.mov(asmjit::x86::qword_ptr(stackPtr), tempValue);
+    }
+
+    // Macros or inline functions to call the helper function with specific values
+#define GEN_PUSH_CONSTANT_FN(name, value) \
+    static void name()                     \
+    {                                      \
+        genPushConstant(value);            \
+    }
+
+    // Define specific constant push functions
+    GEN_PUSH_CONSTANT_FN(push1, 1)
+    GEN_PUSH_CONSTANT_FN(push2, 2)
+    GEN_PUSH_CONSTANT_FN(push3, 3)
+    GEN_PUSH_CONSTANT_FN(push4, 4)
+    GEN_PUSH_CONSTANT_FN(push8, 8)
+    GEN_PUSH_CONSTANT_FN(push16, 16)
+    GEN_PUSH_CONSTANT_FN(push32, 32)
+    GEN_PUSH_CONSTANT_FN(push64, 64)
+    GEN_PUSH_CONSTANT_FN(pushNeg1, -1)
+
+    static void genMulBy10()
+    {
+        auto& a = *jc.assembler;
+        asmjit::x86::Gp stackPtr = asmjit::x86::r11; // Stack pointer register
+        asmjit::x86::Gp tempValue = asmjit::x86::rax; // Temporary register for value
+        asmjit::x86::Gp tempResult = asmjit::x86::rdx; // Temporary register for intermediate result
+
+        a.comment("; multiply by ten");
+        // Load the top stack value into tempValue
+        a.mov(tempValue, asmjit::x86::qword_ptr(stackPtr));
+
+        // Perform the shift left by 3 (Value * 8)
+        a.mov(tempResult, tempValue);
+        a.shl(tempResult, 3);
+
+        // Perform the shift left by 1 (Value * 2)
+        a.shl(tempValue, 1);
+
+        // Add the two shifted values
+        a.add(tempResult, tempValue);
+
+        // Store the result back on the stack
+        a.mov(asmjit::x86::qword_ptr(stackPtr), tempResult);
+    }
+
+
+    // Helper function for left shifts
+    static void genLeftShift(int shiftAmount)
+    {
+        auto& a = *jc.assembler;
+        asmjit::x86::Gp stackPtr = asmjit::x86::r11; // Stack pointer register
+        asmjit::x86::Gp tempValue = asmjit::x86::rax; // Temporary register for value
+
+        // Load the top stack value into tempValue
+        a.mov(tempValue, asmjit::x86::qword_ptr(stackPtr));
+
+        // Perform the shift
+        a.shl(tempValue, shiftAmount);
+
+        // Store the result back on the stack
+        a.mov(asmjit::x86::qword_ptr(stackPtr), tempValue);
+    }
+
+    // Helper function for right shifts
+    static void genRightShift(int shiftAmount)
+    {
+        auto& a = *jc.assembler;
+        asmjit::x86::Gp stackPtr = asmjit::x86::r11; // Stack pointer register
+        asmjit::x86::Gp tempValue = asmjit::x86::rax; // Temporary register for value
+
+        // Load the top stack value into tempValue
+        a.mov(tempValue, asmjit::x86::qword_ptr(stackPtr));
+
+        // Perform the shift
+        a.shr(tempValue, shiftAmount);
+
+        // Store the result back on the stack
+        a.mov(asmjit::x86::qword_ptr(stackPtr), tempValue);
+    }
+
+    // Macros to define the shift operations
+#define GEN_SHIFT_FN(name, shiftAction, shiftAmount) \
+    static void name()                               \
+    {                                                \
+        shiftAction(shiftAmount);                    \
+    }
+
+    // Define specific shift functions for multiplication
+    GEN_SHIFT_FN(gen2mul, genLeftShift, 1)
+    GEN_SHIFT_FN(gen4mul, genLeftShift, 2)
+    GEN_SHIFT_FN(gen8mul, genLeftShift, 3)
+    GEN_SHIFT_FN(gen16mul, genLeftShift, 4)
+
+    // Define specific shift functions for division
+    GEN_SHIFT_FN(gen2Div, genRightShift, 1)
+    GEN_SHIFT_FN(gen4Div, genRightShift, 2)
+    GEN_SHIFT_FN(gen8Div, genRightShift, 3)
 
 private:
     // Private constructor to prevent instantiation
