@@ -79,18 +79,21 @@ inline void compileWord(const std::string& wordName, const std::string& compileT
     while (i < words.size())
     {
         const auto& word = to_lower(words[i]);
-
+        printf("Compiler ... word %s\n", word.c_str());
         ForthWord* fword = d.findWord(word.c_str());
         if (fword->generatorFunc != nullptr)
         {
+            printf("Compiler ... word %s\n", word.c_str());
+            printf("Generating code");
+
             fword->generatorFunc();
             i++;
         }
         else if (fword->compiledFunc != nullptr)
         {
-            // gen_call_word(context, execFunc);
             ++i;
             printf("Compiler ... exec word %s\n", word.c_str());
+            fword->compiledFunc();
         }
         else if (is_number(word))
         {
@@ -131,7 +134,7 @@ inline void compileWord(const std::string& wordName, const std::string& compileT
     // finalize word here
     JitGenerator::genEpilogue();
     const ForthFunction f = JitGenerator::end();
-    d.addWord(wordName.c_str(), f, nullptr);
+    d.addWord(wordName.c_str(), nullptr, f, nullptr);
     printf("Compiler: compiled word: %s\n", wordName.c_str());
     // print code size
     std::cout << "Code size: " << jc.code.codeSize() << std::endl;

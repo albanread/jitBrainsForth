@@ -26,8 +26,9 @@ struct ForthWord {
     uint8_t state;                   // State of the word
 
     // Constructor to initialize a word
-    ForthWord(const char* wordName, ForthFunction func, ForthFunction immFunc, ForthWord* prev)
-        : compiledFunc(func), immediateFunc(immFunc), link(prev), state(ForthWordState::NORMAL)
+    ForthWord(const char* wordName,ForthFunction genny, ForthFunction func, ForthFunction immFunc, ForthWord* prev)
+        : generatorFunc(genny), compiledFunc(func), immediateFunc(immFunc), link(prev), state(ForthWordState::NORMAL)
+
     {
         std::strncpy(name, wordName, sizeof(name));
         name[sizeof(name) - 1] = '\0'; // Ensure null-termination
@@ -45,7 +46,7 @@ public:
     ForthDictionary& operator=(const ForthDictionary&) = delete;
 
     // Add a new word to the dictionary
-    void addWord(const char* name, ForthFunction compiledFunc, ForthFunction immediateFunc);
+    void addWord(const char* name, ForthFunction generatorFunc, ForthFunction compiledFunc, ForthFunction immediateFunc);
 
     // Find a word in the dictionary
     ForthWord* findWord(const char* name) const;
@@ -58,6 +59,7 @@ public:
     void* getH() const;
     ForthWord* getLatestWord();
     void add_base_words();
+    void list_words();
 
 private:
     // Private constructor to prevent instantiation

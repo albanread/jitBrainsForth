@@ -10,14 +10,21 @@ ForthDictionary& ForthDictionary::getInstance(size_t size) {
 ForthDictionary::ForthDictionary(size_t size) : memory(size), currentPos(0), latestWord(nullptr) {}
 
 // Add a new word to the dictionary
-void ForthDictionary::addWord(const char* name, ForthFunction compiledFunc, ForthFunction immediateFunc) {
+void ForthDictionary::addWord(const char* name, ForthFunction generatorFunc, ForthFunction compiledFunc, ForthFunction immediateFunc) {
+
+    printf("Forth dictionary ----------------------------------------------------\n");
+    printf("Adding word %s\n", name);
+
     if (currentPos + sizeof(ForthWord) > memory.size()) {
         throw std::runtime_error("Dictionary memory overflow");
     }
 
     void* wordMemory = &memory[currentPos];
-    ForthWord* newWord = new (wordMemory) ForthWord(name, compiledFunc, immediateFunc, latestWord);
+    ForthWord* newWord = new (wordMemory) ForthWord(name, generatorFunc, compiledFunc, immediateFunc, latestWord);
+
+    // Correctly set the latest word to the new word
     latestWord = newWord;
+
     currentPos += sizeof(ForthWord);
     allot(16);
 }
@@ -51,16 +58,30 @@ void ForthDictionary::storeData(const void* data, size_t dataSize) {
     currentPos += dataSize;
 }
 
- // H in forth is the next free space in the dictionary as an absolute address
+// H in forth is the next free space in the dictionary as an absolute address
 void* ForthDictionary::getH() const {
     return (void*)&memory[currentPos];
 }
 
- ForthWord* ForthDictionary::getLatestWord()
+ForthWord* ForthDictionary::getLatestWord()
 {
     return latestWord;
 }
 
 void ForthDictionary::add_base_words()
 {
+
+
+
+
+}
+
+// list all words
+void ForthDictionary::list_words()
+{
+    ForthWord* word = latestWord;
+    while (word != nullptr) {
+        printf("%s ", word->name);
+        word = word->link;
+    }
 }

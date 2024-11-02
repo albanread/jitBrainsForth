@@ -30,19 +30,22 @@ StackManager::~StackManager() {
 
 void StackManager::display_stack() const {
 
+    printf("\nData Stack: ");
     int dsDepth = dsTop-dsPtr;
+    std::cout << "dsPtr = " << dsPtr << std::endl;
+    std::cout << "dsTop = " << dsTop << std::endl;
     // display items from dsptr (top of stack) down 8 levels
     for (int i = 0; i< std::min(dsDepth,16); i++) {
         std::cout << "[" << i << "] = (" << *(dsPtr + i) << ")  ";
     }
     // display depth of stack
     std::cout << "Data Stack depth: " << dsDepth << std::endl;
+    printf("\nReturn Stack: ");
     int rsDepth = rsTop-rsPtr;
     // display items from rsPtr (top of stack) down 8 levels
     for (int i = 0; i< std::min(rsDepth,16); i++) {
         std::cout << "rsPtr[" << i << "] = " << *(rsPtr + i);
     }
-    std::cout << std::endl;
     // display depth of stack
     std::cout << "Return Stack depth: " << rsDepth << std::endl;
 }
@@ -78,4 +81,10 @@ uint64_t StackManager::popRS() {
         throw std::runtime_error("RS stack underflow");
     }
     return *(rsPtr++);
+}
+
+// return dsTop
+uint64_t StackManager::getDStop() const
+{
+    return reinterpret_cast<uint64_t>(dsTop);
 }

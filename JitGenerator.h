@@ -8,6 +8,9 @@
 #include "JitContext.h"
 #include "ForthDictionary.h"
 #include <stack>
+#include "StackManager.h"
+
+
 
 // labels for control flow.
 
@@ -85,6 +88,8 @@ public:
         static JitGenerator instance;
         return instance;
     }
+
+    static void genOr();
 
     // Delete copy constructor and assignment operator to prevent copies
     JitGenerator(const JitGenerator&) = delete;
@@ -316,10 +321,10 @@ public:
         }
 
         auto& a = *jc.assembler;
-        a.comment(" ; ----- gen_prologue");
+        a.comment(" ; ----- function prologue -------------------------");
         a.nop();
         entryFunction();
-        a.comment(" ; ----- FUNCTION_ENTRY label");
+        a.comment(" ; ----- ENTRY label");
         FunctionEntryExitLabel label;
         label.entryLabel = a.newLabel();
         a.bind(label.entryLabel);
@@ -344,7 +349,7 @@ public:
         a.nop();
         a.comment(" ; ----- gen_epilogue");
 
-        a.comment(" ; ----- FUNCTION_EXIT label");
+        a.comment(" ; ----- EXIT label");
 
         // check if functionsStack is empty
         if (functionsStack.empty())
@@ -392,6 +397,48 @@ public:
         a.comment(" ; Push long value onto the stack");
         a.mov(asmjit::x86::rcx, jc.uint64_A);
         pushDS(asmjit::x86::rcx);
+    }
+
+    static void genSubLong()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genSubLong: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- genSubLong");
+        a.comment(" ; Subtract immediate long value from the top of the stack");
+
+        // Pop value from the stack into `rax`
+        popDS(asmjit::x86::rax);
+
+        // Subtract immediate value `jc.uint64_A` from `rax`
+        a.sub(asmjit::x86::rax, jc.uint64_A);
+
+        // Push the result back onto the stack
+        pushDS(asmjit::x86::rax);
+    }
+
+    static void genPlusLong()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genPlusLong: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- genPlusLong");
+        a.comment(" ; Add immediate long value to the top of the stack");
+
+        // Pop value from the stack into `rax`
+        popDS(asmjit::x86::rax);
+
+        // Add immediate value `jc.uint64_A` to `rax`
+        a.add(asmjit::x86::rax, jc.uint64_A);
+
+        // Push the result back onto the stack
+        pushDS(asmjit::x86::rax);
     }
 
     static ForthFunction end()
@@ -1242,6 +1289,31 @@ public:
         a.mov(asmjit::x86::qword_ptr(stackPtr), firstVal); // Store result back on stack
     }
 
+    // stack ops
+
+    static void genDSAT()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genDSAT: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- genDSAT");
+
+        asmjit::x86::Gp stackPtr = asmjit::x86::r11; // stack pointer in r11
+        asmjit::x86::Gp tempReg = asmjit::x86::rax; // temporary register to hold the stack pointer value
+
+        // Move the stack pointer to the temporary register
+        a.comment(" ; SP@ - Get the stack pointer value");
+        a.mov(tempReg, stackPtr);
+
+        // Push the stack pointer value onto the data stack
+        a.comment(" ; Push the stack pointer value onto the data stack");
+        pushDS(tempReg);
+
+        a.comment(" ; ----- end of genDSAT");
+    }
 
     static void genDrop()
     {
@@ -1314,22 +1386,22 @@ public:
         auto& a = *jc.assembler;
         a.comment(" ; ----- genRot");
 
-        // Assuming r11 is the stack pointer
-        asmjit::x86::Gp stackPtr = asmjit::x86::r11;
-        asmjit::x86::Gp topValue = asmjit::x86::rax;
-        asmjit::x86::Gp secondValue = asmjit::x86::rcx;
-        asmjit::x86::Gp thirdValue = asmjit::x86::rdx;
+        asmjit::x86::Gp stackPtr = asmjit::x86::r11; // stack pointer in r11
+        asmjit::x86::Gp topValue = asmjit::x86::rax; // top value in rax
+        asmjit::x86::Gp secondValue = asmjit::x86::rcx; // second value in rcx
+        asmjit::x86::Gp thirdValue = asmjit::x86::rdx; // third value in rdx
 
         // Rotate the top three values on the stack
         a.comment(" ; Rotate top three values on the stack");
-        a.mov(topValue, asmjit::x86::qword_ptr(stackPtr)); // Load top value
-        a.mov(secondValue, asmjit::x86::qword_ptr(stackPtr, 8)); // Load second value
-        a.mov(thirdValue, asmjit::x86::qword_ptr(stackPtr, 16)); // Load third value
-        a.mov(asmjit::x86::qword_ptr(stackPtr), secondValue); // Store second value in place of top value
-        a.mov(asmjit::x86::qword_ptr(stackPtr, 8), thirdValue); // Store third value in place of second value
-        a.mov(asmjit::x86::qword_ptr(stackPtr, 16), topValue); // Store top value in place of third value
+        a.mov(topValue, asmjit::x86::qword_ptr(stackPtr)); // Load top value (TOS)
+        a.mov(secondValue, asmjit::x86::qword_ptr(stackPtr, 8)); // Load second value (NOS)
+        a.mov(thirdValue, asmjit::x86::qword_ptr(stackPtr, 16)); // Load third value (TOS+2)
+        a.mov(asmjit::x86::qword_ptr(stackPtr), thirdValue); // Store third value in place of top value (TOS = TOS+2)
+        a.mov(asmjit::x86::qword_ptr(stackPtr, 16), secondValue);
+        // Store second value into third position (TOS+2 = NOS)
+        a.mov(asmjit::x86::qword_ptr(stackPtr, 8), topValue); // Store top value into second position (NOS = TOS)
+        a.comment(" ; ----- end of genRot");
     }
-
 
     static void genOver()
     {
@@ -1379,6 +1451,28 @@ public:
     }
 
 
+    static void genNip()
+    {
+        // generate forth NIP stack word
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genNip: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- genNip");
+
+        // Assuming r11 is the stack pointer
+        asmjit::x86::Gp stackPtr = asmjit::x86::r11;
+        asmjit::x86::Gp topValue = asmjit::x86::rax;
+
+        // NIP's operation is to remove the second item on the stack
+        a.comment(" ; Remove the second item from the stack");
+        a.mov(topValue, asmjit::x86::qword_ptr(stackPtr)); // Load top value
+        a.add(stackPtr, 8); // Adjust stack pointer to skip the second item
+        a.mov(asmjit::x86::qword_ptr(stackPtr, 0), topValue); // Move top value to the new top position
+    }
+
     static void genPick(int n)
     {
         if (!jc.assembler)
@@ -1406,7 +1500,7 @@ public:
 
 
     // Helper function to generate code for pushing constants onto the stack
-    static void genPushConstant(const int value)
+    static void genPushConstant(uint64_t value)
     {
         auto& a = *jc.assembler;
         asmjit::x86::Gp stackPtr = asmjit::x86::r11; // Stack pointer register
@@ -1439,6 +1533,23 @@ public:
     GEN_PUSH_CONSTANT_FN(push32, 32)
     GEN_PUSH_CONSTANT_FN(push64, 64)
     GEN_PUSH_CONSTANT_FN(pushNeg1, -1)
+    GEN_PUSH_CONSTANT_FN(SPBASE, sm.getDStop())
+
+#define GEN_INC_DEC_FN(name, operation, value) \
+    static void name()                         \
+    {                                          \
+    jc.uint64_A = value;                   \
+    operation();                           \
+    }
+
+    // Define specific increment functions
+    GEN_INC_DEC_FN(gen1Inc, genPlusLong, 1)
+    GEN_INC_DEC_FN(gen2Inc, genPlusLong, 2)
+    GEN_INC_DEC_FN(gen16Inc, genPlusLong, 16)
+    // Define specific decrement functions
+    GEN_INC_DEC_FN(gen1Dec, genSubLong, 1)
+    GEN_INC_DEC_FN(gen2Dec, genSubLong, 2)
+    GEN_INC_DEC_FN(gen16Dec, genSubLong, 16)
 
     static void genMulBy10()
     {
@@ -1517,6 +1628,10 @@ public:
     GEN_SHIFT_FN(gen2Div, genRightShift, 1)
     GEN_SHIFT_FN(gen4Div, genRightShift, 2)
     GEN_SHIFT_FN(gen8Div, genRightShift, 3)
+
+
+
+
 
 private:
     // Private constructor to prevent instantiation

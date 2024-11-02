@@ -23,6 +23,7 @@ public:
     uint64_t popDS();
     void pushRS(uint64_t value);
     uint64_t popRS();
+    uint64_t getDStop() const;
 
     void display_stack() const;
 
