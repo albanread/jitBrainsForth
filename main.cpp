@@ -300,7 +300,7 @@ void run_basic_tests()
                       55);
 
     testCompileAndRun("testBeginAgain",
-                      " 0 BEGIN DUP 10 < WHILE 1+ AGAIN DROP ",
+                      " 0 BEGIN DUP 10 < WHILE 1+ AGAIN  ",
                       " testBeginAgain ",
                       10); //
 
@@ -313,6 +313,39 @@ void run_basic_tests()
                       " 0 BEGIN 1+ DUP 10 = UNTIL ",
                       " 10 testBeginUntil ",
                       10); // Expected result after the loop is terminated
+
+
+    testCompileAndRun("testNestedIfElse",
+                      " IF IF 1 ELSE 2 THEN ELSE 3 THEN ",
+                      " -1 -1 testNestedIfElse ",
+                      1); // Expected result is 1 because both conditions are true
+
+    testCompileAndRun("testNestedIfElse",
+                      " IF IF 1 ELSE 2 THEN ELSE 3 THEN ",
+                      " -1 0 testNestedIfElse ",
+                      3);
+
+    testCompileAndRun("testNestedIfElse",
+                      " IF IF 1 ELSE 2 THEN ELSE 3 THEN ",
+                      " 0 0 testNestedIfElse ",
+                      3);
+
+    testCompileAndRun("testNestedIfElse",
+                      " IF IF 1 ELSE 2 THEN ELSE 3 THEN ",
+                      " 0 -1 testNestedIfElse ",
+                      2);
+
+   testCompileAndRun("testIfElse",
+                      " IF 1 ELSE 2 THEN ",
+                      " 0 testIfElse ",
+                      2);
+
+    testCompileAndRun("testIfElse",
+                   " IF 1 ELSE 2 THEN ",
+                   " -1 testIfElse ",
+                   1);
+
+
 }
 
 

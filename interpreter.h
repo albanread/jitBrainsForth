@@ -14,9 +14,11 @@
 
 inline void compileWord(const std::string& wordName, const std::string& compileText, bool logging=false)
 {
+    jc.loggingOFF();
+    logging=false;
     // how to look at logs, and asm code.
-    if (wordName == "testBeginAgain") logging=true;
-    if (wordName == "testBeginAgain") jc.loggingON();
+    //if (wordName == "testBeginAgain") logging=true;
+    //if (wordName == "testBeginAgain") jc.loggingON();
 
     if (logging) printf("\nCompiler v2: compiling word: [%s]\n", wordName.c_str());
 
@@ -41,22 +43,6 @@ inline void compileWord(const std::string& wordName, const std::string& compileT
         if (logging) printf("Compiler ... processing word: [%s]\n", word.c_str());
 
         auto* fword = d.findWord(word.c_str());
-
-        if (fword != nullptr)
-        {
-            if (logging) std::cout << "Found word: " << fword->name << std::endl;
-            if (logging) printf("fword->compiledFunc: %p\n", fword->compiledFunc);
-            if (logging) printf("fword->generatorFunc: %p\n", fword->generatorFunc);
-            if (logging) printf("fword->immediateFunc: %p\n", fword->immediateFunc);
-        }
-        if (fword == nullptr)
-        {
-            if (logging) std::cout << "Word not found" << std::endl;
-        }
-
-
-        if (fword != nullptr) // say word exists
-            if (logging) printf("Compiler: word exists: %s\n", word.c_str());
 
         if (fword)
         {
@@ -129,4 +115,10 @@ inline void compileWord(const std::string& wordName, const std::string& compileT
     if (logging) printf("Compiler: successfully compiled word: %s\n", wordName.c_str());
     if (logging) std::cout << "Code size: " << jc.code.codeSize() << std::endl;
 }
+
+
+
+
+
+
 #endif //INTERPRETER_H

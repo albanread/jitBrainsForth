@@ -1631,6 +1631,39 @@ public:
     GEN_PUSH_CONSTANT_FN(pushNeg1, -1)
     GEN_PUSH_CONSTANT_FN(SPBASE, sm.getDStop())
 
+
+    static void gen1Inc() {
+        if (!jc.assembler) {
+            throw std::runtime_error("gen1inc: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- gen1inc - use inc instruction");
+
+        // Assuming r11 is the stack pointer
+        asmjit::x86::Gp stackPtr = asmjit::x86::r11;
+
+        // Increment the value at the memory location pointed to by r11
+        a.inc(asmjit::x86::qword_ptr(stackPtr));
+    }
+
+
+    static void gen1Dec() {
+        if (!jc.assembler) {
+            throw std::runtime_error("gen1inc: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- gen1inc - use dec instruction");
+
+        // Assuming r11 is the stack pointer
+        asmjit::x86::Gp stackPtr = asmjit::x86::r11;
+
+        // Decrement the value at the memory location pointed to by r11
+        a.dec(asmjit::x86::qword_ptr(stackPtr));
+    }
+
+
 #define GEN_INC_DEC_FN(name, operation, value) \
     static void name()                         \
     {                                          \
@@ -1639,11 +1672,10 @@ public:
     }
 
     // Define specific increment functions
-    GEN_INC_DEC_FN(gen1Inc, genPlusLong, 1)
     GEN_INC_DEC_FN(gen2Inc, genPlusLong, 2)
     GEN_INC_DEC_FN(gen16Inc, genPlusLong, 16)
     // Define specific decrement functions
-    GEN_INC_DEC_FN(gen1Dec, genSubLong, 1)
+
     GEN_INC_DEC_FN(gen2Dec, genSubLong, 2)
     GEN_INC_DEC_FN(gen16Dec, genSubLong, 16)
 
