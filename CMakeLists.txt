@@ -18,6 +18,7 @@ add_executable(jitBrainsForth
         JitGenerator.h
         interpreter.cpp
         interpreter.h
+        utility.h
 
 )
 

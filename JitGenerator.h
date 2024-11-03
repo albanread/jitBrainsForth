@@ -11,7 +11,6 @@
 #include "StackManager.h"
 
 
-
 // labels for control flow.
 
 
@@ -75,6 +74,9 @@ inline extern void prim_emit(const uint64_t a)
     printf("; prim_emit: %d\n", a);
     putchar(a);
 }
+
+static bool logging = false;
+
 
 class JitGenerator
 {
@@ -315,7 +317,7 @@ public:
     static void genPrologue()
     {
         jc.resetContext();
-        std::cout << "; gen_prologue\n";
+        if (logging) std::cout << "; gen_prologue\n";
         if (!jc.assembler)
         {
             throw std::runtime_error("gen_prologue: Assembler not initialized");
@@ -334,7 +336,7 @@ public:
         functionsStack.push(label);
 
 
-        printf(" ; gen_prologue: %p\n", jc.assembler);
+        if (logging) printf(" ; gen_prologue: %p\n", jc.assembler);
     }
 
     static void genEpilogue()
@@ -389,8 +391,8 @@ public:
 
     static void prim_depth()
     {
-        const uint64_t depth= sm.getDSDepth();
-        sm.pushDS(depth);
+        const uint64_t depth = sm.getDSDepth();
+        sm.pushDS(depth + 1);
     }
 
     static void genDepth()
@@ -488,7 +490,7 @@ public:
     // return a function after building a function around its generator fn
     static ForthFunction build_forth(const ForthFunction fn)
     {
-        std::cout << "; building forth function ... \n";
+        if (logging) std::cout << "; building forth function ... \n";
         if (!jc.assembler)
         {
             throw std::runtime_error("build: Assembler not initialized");
@@ -499,6 +501,19 @@ public:
         const ForthFunction new_func = end();
         return new_func;
     }
+
+    static void genCall(ForthFunction fn)
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("gen_call: Assembler not initialized");
+        }
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- gen_call");
+        a.mov(asmjit::x86::rax, fn);
+        a.call(asmjit::x86::rax);
+    }
+
 
     static void gen_do()
     {
@@ -1657,17 +1672,11 @@ public:
     GEN_SHIFT_FN(gen4Div, genRightShift, 2)
     GEN_SHIFT_FN(gen8Div, genRightShift, 3)
 
-
-
-
 private:
     // Private constructor to prevent instantiation
     JitGenerator() = default;
     // Private destructor if needed
     ~JitGenerator() = default;
-
-
-
 };
 
 #endif //JITGENERATOR_H

@@ -5,6 +5,7 @@
 #include <cstring>
 #include <vector>
 #include <cstdint>
+#include "utility.h"
 
 // Function pointer type
 typedef void (*ForthFunction)();
@@ -56,10 +57,11 @@ public:
 
     // Store data in the dictionary
     void storeData(const void* data, size_t dataSize);
-    void* getH() const;
+    [[nodiscard]] void* getH() const;
     ForthWord* getLatestWord();
     void add_base_words();
-    void list_words();
+    void list_words() const;
+
 
 private:
     // Private constructor to prevent instantiation

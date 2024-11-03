@@ -110,6 +110,10 @@ void add_words()
     d.addWord("XOR", JitGenerator::genXOR, JitGenerator::build_forth(JitGenerator::genXOR), nullptr);
     d.addWord("AND", JitGenerator::genAnd, JitGenerator::build_forth(JitGenerator::genAnd), nullptr);
     d.addWord("NOT", JitGenerator::genNot, JitGenerator::build_forth(JitGenerator::genNot), nullptr);
+
+    compileWord("SQ", "DUP *");
+
+
 }
 
 
@@ -205,13 +209,10 @@ void test_begin_if_leave_then_again_loop()
 
 void run_word(const std::string& word)
 {
-    std::cout << std::endl;
-    std::cout << "Running word: " << word << std::endl;
     ForthWord* w = d.findWord(word.c_str());
     if (w == nullptr)
     {
         if (is_number(word)){
-
             uint64_t num = std::stoll(word);
             printf("Pushing number: %llu\n", num);
             sm.pushDS(num);
@@ -229,12 +230,12 @@ void run_word(const std::string& word)
 
 void run_words(const std::string& words)
 {
-    // split the string by spaces
     std::vector<std::string> words_vec;
     std::stringstream ss(words);
     std::string word;
     while (std::getline(ss, word, ' '))
     {
+        if (word.empty()) continue;
         words_vec.push_back(word);
     }
     for (auto& w : words_vec)
@@ -245,6 +246,7 @@ void run_words(const std::string& words)
 
 void test_against_ds(const std::string& words, const uint64_t expected_top)
 {
+    sm.resetDS(); // to get a clean stack
     std::cout << "Running: " << words << std::endl;
     run_words(words);
     uint64_t result = sm.popDS();
@@ -254,7 +256,7 @@ void test_against_ds(const std::string& words, const uint64_t expected_top)
             std::endl;
     }
     else
-        std::cout << "Passed test: " << words << std::endl;
+        std::cout << "Passed test: " << words << " = " << expected_top << std::endl;
 }
 
 
@@ -263,7 +265,17 @@ void run_basic_tests()
     test_against_ds(" 16 ", 16);
     test_against_ds(" 16 16 + ", 32);
     test_against_ds(" 1 2 3 + + ", 6);
-
+    test_against_ds(" 8 8* ", 64);
+    test_against_ds(" 5 DUP * ", 25);
+    test_against_ds(" 5 SQ ", 25);
+    test_against_ds(" 1 2 3 OVER ", 2);
+    test_against_ds(" 1 2 3 SWAP ", 2);
+    test_against_ds(" 1 2 3 4 5 DEPTH ", 5);
+    test_against_ds(" 1987 ", 1987);
+    test_against_ds(" 1987 1+", 1988);
+    test_against_ds(" 1987 1-", 1986);
+    test_against_ds(" 1987 1 +", 1988);
+    test_against_ds(" 1987 1 -", 1986);
 }
 
 
@@ -281,11 +293,9 @@ int main()
 
 
         jc.loggingON();
-        test_do_loop();
 
 
-
-
+        run_basic_tests();
         sm.display_stack();
 
 
