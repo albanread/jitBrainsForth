@@ -1,4 +1,3 @@
-
 #ifndef UTILITY_H
 #define UTILITY_H
 #include <algorithm>
@@ -7,7 +6,44 @@
 #include <sstream>
 #include <iostream>
 #include <cctype>
+#include <bitset>
+#include <iomanip>
 
+extern "C" {
+inline void printDecimal(int64_t number)
+{
+    std::cout << std::to_string(number) << std::endl;
+}
+
+inline void printUnsignedDecimal(uint64_t number)
+{
+    std::cout << std::to_string(number) << std::endl;
+}
+
+inline void printUnsignedHex(uint64_t number)
+{
+    std::ostringstream oss;
+    oss << "0x" << std::hex << number;
+    std::cout << oss.str() << std::endl;
+}
+
+inline void printHex(int64_t number)
+{
+    std::ostringstream oss;
+    oss << "0x" << std::hex << number;
+    std::cout << oss.str() << std::endl;
+}
+
+inline void printBinary(int64_t number)
+{
+    std::cout << "0b" << std::bitset<64>(number) << std::endl;
+}
+
+inline void printUnsignedBinary(uint64_t number)
+{
+    std::cout << "0b" << std::bitset<64>(number) << std::endl;
+}
+}
 
 inline std::string trim(const std::string& str)
 {

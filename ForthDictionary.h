@@ -27,7 +27,7 @@ struct ForthWord {
     uint8_t state;                   // State of the word
 
     // Constructor to initialize a word
-    ForthWord(const char* wordName,ForthFunction genny, ForthFunction func, ForthFunction immFunc, ForthWord* prev)
+    ForthWord(const char* wordName, ForthFunction genny, ForthFunction func, ForthFunction immFunc, ForthWord* prev)
         : generatorFunc(genny), compiledFunc(func), immediateFunc(immFunc), link(prev), state(ForthWordState::NORMAL)
 
     {
@@ -57,11 +57,16 @@ public:
 
     // Store data in the dictionary
     void storeData(const void* data, size_t dataSize);
-    [[nodiscard]] void* getH() const;
-    ForthWord* getLatestWord();
-    void add_base_words();
-    void list_words() const;
 
+    // Get the latest added word
+    ForthWord* getLatestWord();
+
+    // Add base words to the dictionary
+    void add_base_words();
+    void forgetLastWord();
+
+    // List all words in the dictionary
+    void list_words() const;
 
 private:
     // Private constructor to prevent instantiation
@@ -70,6 +75,9 @@ private:
     std::vector<char> memory;    // Memory buffer for the dictionary
     size_t currentPos;           // Current position in the memory buffer
     ForthWord* latestWord;       // Pointer to the latest added word
+
+
+
 };
 
 #endif // FORTH_DICTIONARY_H

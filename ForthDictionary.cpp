@@ -75,6 +75,31 @@ void ForthDictionary::add_base_words() {
     // Add base words, placeholder for actual implementation
 }
 
+ void ForthDictionary::forgetLastWord() {
+    if (latestWord == nullptr) {
+        throw std::runtime_error("No words to forget");
+    }
+
+    std::cout << "Forgetting word " << latestWord->name << std::endl;
+
+    // Size of the word (this depends on your actual implementation details. Adjust as needed).
+    size_t wordSize = sizeof(ForthWord) + 16; // include the extra allotted space
+    currentPos -= wordSize;
+
+   // std::memset(&memory[currentPos], 0, wordSize); // Wipe the memory with zeros
+
+    // Update the latest word pointer
+    ForthWord* previousWord = latestWord->link;
+    latestWord = previousWord;
+
+    // Additional check to update the linking properly in dictionary
+    if (latestWord != nullptr) {
+        std::cout << "New latest word is " << latestWord->name << std::endl;
+    } else {
+        std::cout << "No more words in dictionary" << std::endl;
+    }
+}
+
 // List all words in the dictionary
 void ForthDictionary::list_words() const {
     ForthWord* word = latestWord;

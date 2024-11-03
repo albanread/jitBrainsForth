@@ -88,6 +88,17 @@ void add_words()
     d.addWord("2-", JitGenerator::gen2Dec, JitGenerator::build_forth(JitGenerator::gen2Dec), nullptr);
     d.addWord("16-", JitGenerator::gen16Dec, JitGenerator::build_forth(JitGenerator::gen16Dec), nullptr);
 
+
+    // Add the < comparison word
+    d.addWord("<", JitGenerator::genLt, JitGenerator::build_forth(JitGenerator::genLt), nullptr);
+
+    // Add the = comparison word
+    d.addWord("=", JitGenerator::genEq, JitGenerator::build_forth(JitGenerator::genEq), nullptr);
+
+    // Add the > comparison word
+    d.addWord(">", JitGenerator::genGt, JitGenerator::build_forth(JitGenerator::genGt), nullptr);
+
+
     d.addWord("+", JitGenerator::genPlus, JitGenerator::build_forth(JitGenerator::genPlus), nullptr);
     d.addWord("-", JitGenerator::genSub, JitGenerator::build_forth(JitGenerator::genSub), nullptr);
     d.addWord("*", JitGenerator::genMul, JitGenerator::build_forth(JitGenerator::genMul), nullptr);
@@ -111,100 +122,29 @@ void add_words()
     d.addWord("AND", JitGenerator::genAnd, JitGenerator::build_forth(JitGenerator::genAnd), nullptr);
     d.addWord("NOT", JitGenerator::genNot, JitGenerator::build_forth(JitGenerator::genNot), nullptr);
 
+    d.addWord("FORGET", JitGenerator::genForget, JitGenerator::build_forth(JitGenerator::genForget), nullptr);
+
+
+    // Add immediate functions for control flow words
+    d.addWord("IF", nullptr, nullptr, JitGenerator::genIf);
+    d.addWord("THEN", nullptr, nullptr, JitGenerator::genThen);
+    d.addWord("ELSE", nullptr, nullptr, JitGenerator::genElse);
+    d.addWord("BEGIN", nullptr, nullptr, JitGenerator::genBegin);
+    d.addWord("UNTIL", nullptr, nullptr, JitGenerator::genUntil);
+    d.addWord("WHILE", nullptr, nullptr, JitGenerator::genWhile);
+    d.addWord("REPEAT", nullptr, nullptr, JitGenerator::genRepeat);
+    d.addWord("AGAIN", nullptr, nullptr, JitGenerator::genAgain);
+    d.addWord("DO", nullptr, nullptr, JitGenerator::genDo);
+    d.addWord("LOOP", nullptr, nullptr, JitGenerator::genLoop);
+    d.addWord("+LOOP", nullptr, nullptr, JitGenerator::genPlusLoop);
+    d.addWord("I", nullptr, nullptr, JitGenerator::genI);
+    d.addWord("J", nullptr, nullptr, JitGenerator::genJ);
+    d.addWord("K", nullptr, nullptr, JitGenerator::genK);
+    d.addWord("EXIT", nullptr, nullptr, JitGenerator::genExit);
+    d.addWord("LEAVE", nullptr, nullptr, JitGenerator::genLeave);
+
     compileWord("SQ", "DUP *");
-
-
 }
-
-
-void test_do_loop()
-{
-    JitGenerator::genPrologue();
-    jc.uint64_A = 10;
-    JitGenerator::genPushLong();
-    jc.uint64_A = 1;
-    JitGenerator::genPushLong();
-    JitGenerator::gen_do();
-
-    jc.uint64_A = 35;
-    JitGenerator::genPushLong();
-    JitGenerator::genEmit();
-    JitGenerator::gen_loop();
-
-    JitGenerator::genEpilogue();
-
-    const ForthFunction func = JitGenerator::end();
-    func();
-}
-
-void test_do_loop_with_index()
-{
-    JitGenerator::genPrologue();
-    jc.uint64_A = 10;
-    JitGenerator::genPushLong();
-    jc.uint64_A = 1;
-    JitGenerator::genPushLong();
-    JitGenerator::gen_do();
-
-    jc.uint64_A = 35;
-    JitGenerator::genPushLong();
-    JitGenerator::gen_I();
-    JitGenerator::genPlus();
-    JitGenerator::genEmit();
-    JitGenerator::gen_loop();
-
-    JitGenerator::genEpilogue();
-
-    const ForthFunction func = JitGenerator::end();
-    func();
-}
-
-/*
-void test_begin_if_leave_then_again_loop()
-{
-    JitGenerator::genPrologue();
-
-    // Initialize counter to 12
-    jc.uint64_A = 12;
-    JitGenerator::genPushLong();
-
-    // BEGIN label
-    JitGenerator::gen_begin();
-
-    // Push character '*' (ASCII 42) and emit it
-    jc.uint64_A = 42;          // ASCII value for '*'
-    JitGenerator::genPushLong();
-    JitGenerator::genEmit();
-
-    // Decrement counter
-    jc.uint64_A = 1;
-    JitGenerator::genPushLong();
-    JitGenerator::genSub();
-
-    // Duplicate counter to check for zero
-    JitGenerator::genDup();
-
-    // Check if counter is zero for IF LEAVE THEN
-    jc.uint64_A = 0;           // Zero value for comparison
-    JitGenerator::genPushLong();
-    JitGenerator::genEq();
-    JitGenerator::genIf();
-    JitGenerator::gen_leave();
-    JitGenerator::genThen();
-
-    // Pop the duplicated counter to proceed with the next iteration
-    JitGenerator::genDrop();
-
-    // AGAIN (jump back to BEGIN)
-    JitGenerator::gen_again();
-
-    JitGenerator::genEpilogue();
-
-    // Finalize and invoke the generated function
-    const ForthFunction func = JitGenerator::end();
-    func();
-}
-*/
 
 
 void run_word(const std::string& word)
@@ -212,7 +152,8 @@ void run_word(const std::string& word)
     ForthWord* w = d.findWord(word.c_str());
     if (w == nullptr)
     {
-        if (is_number(word)){
+        if (is_number(word))
+        {
             uint64_t num = std::stoll(word);
             printf("Pushing number: %llu\n", num);
             sm.pushDS(num);
@@ -222,8 +163,9 @@ void run_word(const std::string& word)
             std::cout << "Word not found " << word << std::endl;
             return;
         }
-
-    } else {
+    }
+    else
+    {
         w->compiledFunc();
     }
 }
@@ -252,11 +194,21 @@ void test_against_ds(const std::string& words, const uint64_t expected_top)
     uint64_t result = sm.popDS();
     if (result != expected_top)
     {
-        std::cout << "Failed test: " << words << " Expected: " << expected_top << " but got: " << result <<
+        std::cout << "!! ---- Failed test: " << words << " Expected: " << expected_top << " but got: " << result <<
             std::endl;
     }
     else
         std::cout << "Passed test: " << words << " = " << expected_top << std::endl;
+}
+
+
+void testCompileAndRun(const std::string& wordName,
+                       const std::string& wordDefinition,
+                       const std::string& testString, int expectedResult)
+{
+    compileWord(wordName, wordDefinition);
+    test_against_ds(testString, expectedResult);
+    d.forgetLastWord();
 }
 
 
@@ -276,6 +228,91 @@ void run_basic_tests()
     test_against_ds(" 1987 1-", 1986);
     test_against_ds(" 1987 1 +", 1988);
     test_against_ds(" 1987 1 -", 1986);
+    test_against_ds(" 3 4 +", 7);
+    test_against_ds(" 10 2 -", 8);
+    test_against_ds(" 6 3 *", 18);
+    test_against_ds(" 8 2 /", 4);
+    test_against_ds(" 5 DUP +", 10); // DUP duplicates 5, resulting in 5 5, then + adds them to get 10
+    test_against_ds(" 1 2 SWAP", 1); // SWAP 1 2 results in 2 1, top of stack should be 1
+    test_against_ds(" 1 2 OVER", 1);
+    test_against_ds(" 3 4 SWAP 5", 5); // SWAP 3 4 results in 4 3, then push 5, top of stack is 5
+    test_against_ds(" 2 3 4 + *", 14); // 3 + 4 = 7, 2 * 7 = 14
+    test_against_ds(" 6 2 / 3 *", 9); // 6 / 2 = 3, 3 * 3 = 9
+    test_against_ds(" 9 2 + 3 -", 8); // 9 + 2 = 11, 11 - 3 = 8
+    test_against_ds(" 7 8 DUP + +", 23); // 8 DUP results in 7 8 8, 8 + 8 = 16, 7 + 16 = 23
+    test_against_ds(" 6 4 3 OVER * +", 16); //
+    test_against_ds(" 1 2 3 DROP + ", 3); //
+    test_against_ds(" 0 0 +", 0);
+    test_against_ds(" -1 1 +", 0);
+    test_against_ds(" 1 0 -", 1);
+    test_against_ds(" 1 1+ ", 2);
+    test_against_ds(" 1 1- ", 0);
+    test_against_ds(" 10 2 - 3 +", 11); // 10-2=8, 8+3=11
+    test_against_ds("8 8/", 1); // 8 >> 3 = 1
+    test_against_ds("64 8/", 8); // 64 >> 3 = 8
+    test_against_ds("16 8/", 2); // 16 >> 3 = 2
+    test_against_ds("7 8/", 0); // 7 >> 3 = 0
+    test_against_ds("128 8/", 16); // 128 >> 3 = 16
+    test_against_ds("8 4/", 2); // 8 >> 2 = 2
+    test_against_ds("16 4/", 4); // 16 >> 2 = 4
+    test_against_ds("64 4/", 16); // 64 >> 2 = 16
+    test_against_ds("3 4/", 0); // 3 >> 2 = 0
+    test_against_ds("128 4/", 32); // 128 >> 2 = 32
+    test_against_ds("8 2/", 4); // 8 >> 1 = 4
+    test_against_ds("16 2/", 8); // 16 >> 1 = 8
+    test_against_ds("64 2/", 32); // 64 >> 1 = 32
+    test_against_ds("1 2/", 0); // 1 >> 1 = 0
+    test_against_ds("128 2/", 64); // 128 >> 1 = 64
+    test_against_ds("1 8*", 8); // 1 << 3 = 8
+    test_against_ds("2 8*", 16); // 2 << 3 = 16
+    test_against_ds("4 8*", 32); // 4 << 3 = 32
+    test_against_ds("8 8*", 64); // 8 << 3 = 64
+    test_against_ds("16 8*", 128); // 16 << 3 = 128
+
+    // Test if 3 is less than 5 (should be -1, which represents true in Forth)
+    test_against_ds("3 5 <", -1);
+
+    // Test if 5 is less than 3 (should be 0, which represents false in Forth)
+    test_against_ds("5 3 <", 0);
+
+    // Test if 5 is greater than 3 (should be -1, which represents true in Forth)
+    test_against_ds("5 3 >", -1);
+
+    // Test if 3 is greater than 5 (should be 0, which represents false in Forth)
+    test_against_ds("3 5 >", 0);
+
+    // Test if 5 is equal to 5 (should be -1, which represents true in Forth)
+    test_against_ds("5 5 =", -1);
+
+    // Test if 5 is equal to 3 (should be 0, which represents false in Forth)
+    test_against_ds("5 3 =", 0);
+
+
+    // compiled word tests
+    testCompileAndRun("testWord",
+                      " 100 + ",
+                      "1 testWord ",
+                      101);
+
+    testCompileAndRun("testWord",
+                      " 0 11 1 do I + LOOP ",
+                      " testWord ",
+                      55);
+
+    testCompileAndRun("testBeginAgain",
+                      " 0 BEGIN DUP 10 < WHILE 1+ AGAIN DROP ",
+                      " testBeginAgain ",
+                      10); //
+
+    testCompileAndRun("testBeginWhileRepeat",
+                      " BEGIN DUP 10 < WHILE 1+ REPEAT ",
+                      " 0 testBeginWhileRepeat ",
+                      10); // Expected result when while condition fails
+
+    testCompileAndRun("testBeginUntil",
+                      " 0 BEGIN 1+ DUP 10 = UNTIL ",
+                      " 10 testBeginUntil ",
+                      10); // Expected result after the loop is terminated
 }
 
 
@@ -283,26 +320,18 @@ int main()
 {
     try
     {
-
         std::cout << "hello" << std::endl;
         jc.loggingOFF();
         sm.pushDS(10);
         add_words();
-        sm.resetDS();
-        d.list_words();
+        // sm.resetDS();
+        // d.list_words();
 
-
-        jc.loggingON();
+        //jc.loggingON();
 
 
         run_basic_tests();
-        sm.display_stack();
-
-
-
-
-
-
+        // sm.display_stack();
     }
     catch (const std::runtime_error& e)
     {

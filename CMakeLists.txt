@@ -16,7 +16,6 @@ add_executable(jitBrainsForth
         ForthDictionary.h
         StackManager.h
         JitGenerator.h
-        interpreter.cpp
         interpreter.h
         utility.h
 

@@ -369,6 +369,7 @@ public:
         a.ret();
     }
 
+
     static void genEmit()
     {
         if (!jc.assembler)
@@ -383,6 +384,51 @@ public:
         // Allocate space for the shadow space (32 bytes).
         a.sub(asmjit::x86::rsp, 32);
         a.call(asmjit::imm(reinterpret_cast<void*>(putchar)));
+        // Restore stack.
+        a.add(asmjit::x86::rsp, 32);
+        restoreStackPointers();
+    }
+
+
+    static void prim_forget()
+    {
+        d.forgetLastWord();
+    }
+
+    static void genForget()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("gen_emit: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- gen_emit");
+
+        preserveStackPointers();
+        // Allocate space for the shadow space (32 bytes).
+        a.sub(asmjit::x86::rsp, 32);
+        a.call(asmjit::imm(reinterpret_cast<void*>(prim_forget)));
+        // Restore stack.
+        a.add(asmjit::x86::rsp, 32);
+        restoreStackPointers();
+    }
+
+
+    static void genDot()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("gen_emit: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- gen_dot");
+        popDS(asmjit::x86::rcx);
+        preserveStackPointers();
+        // Allocate space for the shadow space (32 bytes).
+        a.sub(asmjit::x86::rsp, 32);
+        a.call(asmjit::imm(reinterpret_cast<void*>(printDecimal)));
         // Restore stack.
         a.add(asmjit::x86::rsp, 32);
         restoreStackPointers();
@@ -404,7 +450,7 @@ public:
 
         auto& a = *jc.assembler;
         a.comment(" ; ----- gen_emit");
-        popDS(asmjit::x86::rcx);
+
         preserveStackPointers();
         // Allocate space for the shadow space (32 bytes).
         a.sub(asmjit::x86::rsp, 32);
@@ -515,7 +561,7 @@ public:
     }
 
 
-    static void gen_do()
+    static void genDo()
     {
         if (!jc.assembler)
         {
@@ -550,7 +596,7 @@ public:
         doLoopStack.push(doLoopLabel);
     }
 
-    static void gen_loop()
+    static void genLoop()
     {
         if (!jc.assembler)
         {
@@ -592,7 +638,7 @@ public:
         a.cmp(currentIndex, limit);
 
         a.comment(" ; Jump to loop start if still looping.");
-        a.jle(loopLabel.doLabel);
+        a.jl(loopLabel.doLabel);
         // jump to loop start if current index is less than or equal to limit
 
         a.comment(" ; ----- LEAVE and loop label");
@@ -607,7 +653,7 @@ public:
     }
 
 
-    static void gen_plus_loop()
+    static void genPlusLoop()
     {
         if (!jc.assembler)
         {
@@ -648,7 +694,7 @@ public:
         a.cmp(currentIndex, limit);
 
         // Jump if current index is less than or equal to limit
-        a.jle(loopLabel.doLabel);
+        a.jl(loopLabel.doLabel);
 
         a.comment(" ; ----- Loop and Leave label");
         a.bind(loopLabel.loopLabel);
@@ -659,7 +705,7 @@ public:
         // Clean up loop stack
     }
 
-    static void gen_leave()
+    static void genLeave()
     {
         if (!jc.assembler)
         {
@@ -683,7 +729,7 @@ public:
         a.jmp(loopLabel.leaveLabel);
     }
 
-    static void gen_I()
+    static void genI()
     {
         if (!jc.assembler)
         {
@@ -708,7 +754,7 @@ public:
         pushDS(currentIndex);
     }
 
-    static void gen_J()
+    static void genJ()
     {
         if (!jc.assembler)
         {
@@ -733,7 +779,7 @@ public:
         pushDS(outerCurrentIndex);
     }
 
-    static void gen_K()
+    static void genK()
     {
         if (!jc.assembler)
         {
@@ -758,7 +804,7 @@ public:
         pushDS(outermostCurrentIndex);
     }
 
-    static void gen_begin()
+    static void genBegin()
     {
         if (!jc.assembler)
         {
@@ -777,11 +823,12 @@ public:
         beginLabel.hasWhile = false;
         beginLabel.hasLeave = false;
 
+        a.comment(" ; LABEL for BEGIN");
         a.bind(beginLabel.beginLabel);
         beginAgainRepeatUntilStack.push(beginLabel);
     }
 
-    static void gen_again()
+    static void genAgain()
     {
         if (!jc.assembler)
         {
@@ -804,9 +851,10 @@ public:
         beginLabel.hasAgain = true;
         a.jmp(beginLabel.beginLabel);
         a.bind(beginLabel.againLabel);
+        a.bind(beginLabel.whileLabel);
     }
 
-    static void gen_repeat()
+    static void genRepeat()
     {
         if (!jc.assembler)
         {
@@ -829,9 +877,10 @@ public:
         beginLabel.hasRepeat = true;
         a.jmp(beginLabel.beginLabel);
         a.bind(beginLabel.repeatLabel);
+        a.bind(beginLabel.whileLabel);
     }
 
-    static void gen_until()
+    static void genUntil()
     {
         if (!jc.assembler)
         {
@@ -862,7 +911,7 @@ public:
         a.bind(beginLabel.untilLabel);
     }
 
-    static void gen_while()
+    static void genWhile()
     {
         if (!jc.assembler)
         {
@@ -978,7 +1027,7 @@ public:
     }
 
 
-    static void gen_exit()
+    static void genExit()
     {
         if (!jc.assembler)
         {
@@ -1086,7 +1135,6 @@ public:
         a.add(asmjit::x86::qword_ptr(stackPtr), firstVal); // Add first value to second value
     }
 
-
     static void genDiv()
     {
         if (!jc.assembler)
@@ -1099,26 +1147,26 @@ public:
 
         // Assuming r11 is the stack pointer
         asmjit::x86::Gp stackPtr = asmjit::x86::r11;
-        asmjit::x86::Gp firstVal = asmjit::x86::rax;
+        asmjit::x86::Gp dividend = asmjit::x86::rax;
         asmjit::x86::Gp divisor = asmjit::x86::rcx;
 
-        // Pop two values from the stack, divide the second by the first, and push the quotient
+        // Pop two values from the stack, divide the first by the second, and push the quotient
 
         a.comment(" ; Perform / division");
-        a.mov(firstVal, asmjit::x86::qword_ptr(stackPtr)); // Load first value
+        a.mov(divisor, asmjit::x86::qword_ptr(stackPtr)); // Load the second value (divisor)
         a.add(stackPtr, 8); // Adjust stack pointer
 
-        a.mov(divisor, asmjit::x86::qword_ptr(stackPtr)); // Load second value (divisor)
+        a.mov(dividend, asmjit::x86::qword_ptr(stackPtr)); // Load the first value (dividend)
+        a.add(stackPtr, 8); // Adjust stack pointer
 
-        a.mov(asmjit::x86::rdx, 0); // Clear RDX for division
-        a.mov(asmjit::x86::rax, divisor);
+        a.mov(asmjit::x86::rdx, 0); // Clear RDX for unsigned division
+        // RAX already contains the dividend (first value)
 
-        a.idiv(firstVal); // Divide second value (in RAX) by first value, quotient in RAX
+        a.idiv(divisor); // Perform signed division: RDX:RAX / divisor
 
-        a.comment(" ; Push the quotient onto the stack");
+        a.sub(stackPtr, 8); // Adjust stack pointer back
         a.mov(asmjit::x86::qword_ptr(stackPtr), asmjit::x86::rax); // Store quotient back on stack
     }
-
 
     static void genMul()
     {
@@ -1179,7 +1227,6 @@ public:
         a.mov(asmjit::x86::qword_ptr(stackPtr), asmjit::x86::rax); // Store result on stack
     }
 
-
     static void genLt()
     {
         if (!jc.assembler)
@@ -1193,20 +1240,26 @@ public:
         // Assuming r11 is the stack pointer
         asmjit::x86::Gp stackPtr = asmjit::x86::r11;
         asmjit::x86::Gp firstVal = asmjit::x86::rax;
+        asmjit::x86::Gp secondVal = asmjit::x86::rdx;
 
         // Pop two values, compare them and push the result (0 or -1)
         a.comment(" ; < compare them and push the result (0 or -1)");
+
         a.mov(firstVal, asmjit::x86::qword_ptr(stackPtr)); // Load first value
         a.add(stackPtr, 8); // Adjust stack pointer
 
-        a.cmp(asmjit::x86::qword_ptr(stackPtr), firstVal); // Compare with second value
-        a.setl(asmjit::x86::al); // Set AL to 1 if less
+        a.mov(secondVal, asmjit::x86::qword_ptr(stackPtr)); // Load second value
+        a.add(stackPtr, 8); // Adjust stack pointer
 
-        a.neg(asmjit::x86::al); // Set AL to -1 if true, 0 if false
-        a.movsx(asmjit::x86::rax, asmjit::x86::al); // Sign-extend AL to RAX (-1 or 0)
+        a.cmp(secondVal, firstVal); // Compare second value to first value
+        a.setl(asmjit::x86::al); // Set AL to 1 if secondVal < firstVal
+
+        a.movzx(asmjit::x86::rax, asmjit::x86::al); // Zero-extend AL to RAX
+        a.neg(asmjit::x86::rax); // Set RAX to -1 if true (1 -> -1), 0 remains 0
+
+        a.sub(stackPtr, 8); // Adjust stack pointer
         a.mov(asmjit::x86::qword_ptr(stackPtr), asmjit::x86::rax); // Store result on stack
     }
-
 
     static void genGt()
     {
