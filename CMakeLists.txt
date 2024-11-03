@@ -14,7 +14,6 @@ add_executable(jitBrainsForth
         jitContext.h
         ForthDictionary.cpp
         ForthDictionary.h
-        StackManager.cpp
         StackManager.h
         JitGenerator.h
         interpreter.cpp

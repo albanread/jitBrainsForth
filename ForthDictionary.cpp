@@ -12,8 +12,7 @@ ForthDictionary::ForthDictionary(size_t size) : memory(size), currentPos(0), lat
 // Add a new word to the dictionary
 void ForthDictionary::addWord(const char* name, ForthFunction generatorFunc, ForthFunction compiledFunc, ForthFunction immediateFunc) {
 
-    printf("Forth dictionary ----------------------------------------------------\n");
-    printf("Adding word %s\n", name);
+     printf("Added word %s\n", name);
 
     if (currentPos + sizeof(ForthWord) > memory.size()) {
         throw std::runtime_error("Dictionary memory overflow");

@@ -24,7 +24,8 @@ public:
         return *assembler;
     }
 
-    void resetContext() {
+    void resetContext()
+    {
         // Reset and reinitialize the code holder
         code.reset();
         code.init(rt.environment());
@@ -32,7 +33,11 @@ public:
         // Recreate the assembler with the new code holder
         delete assembler;
         assembler = new asmjit::x86::Assembler(&code);
-        code.setLogger(&logger);
+        if (logging)
+        {
+            code.setLogger(&logger);
+        }
+
         std::cout << "AsmJit context has been reset and reinitialized." << std::endl;
     }
 
@@ -43,6 +48,18 @@ public:
         std::cout << "Executing some JIT function..." << std::endl;
     }
 
+    void loggingON()
+    {
+        logging = true;
+        code.setLogger(&logger);
+    }
+
+    void loggingOFF()
+    {
+        logging = false;
+        code.setLogger(nullptr);  // Disable logging
+    }
+
 private:
     // Private constructor to prevent instantiation
     JitContext() : rt(), assembler(nullptr), logger(stdout)
@@ -50,7 +67,10 @@ private:
         // Initialization code
         code.init(rt.environment());
         assembler = new asmjit::x86::Assembler(&code);
-        code.setLogger(&logger);
+        if (logging)
+        {
+            code.setLogger(&logger);
+        }
     }
 
     // Private destructor
@@ -61,6 +81,7 @@ private:
     }
 
 public:
+
     asmjit::FileLogger logger; // Logs to the standard output
     asmjit::JitRuntime rt;
     asmjit::CodeHolder code;
@@ -82,6 +103,7 @@ public:
     double d;
     void* ptr_A;
     void* ptr_B;
+    bool logging = false;
 };
 
 #endif // JITCONTEXT_H

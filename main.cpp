@@ -64,7 +64,9 @@ void add_words()
     d.addWord("3", JitGenerator::push3, JitGenerator::build_forth(JitGenerator::push3), nullptr);
     d.addWord("4", JitGenerator::push4, JitGenerator::build_forth(JitGenerator::push4), nullptr);
     d.addWord("8", JitGenerator::push8, JitGenerator::build_forth(JitGenerator::push8), nullptr);
+    jc.loggingON();
     d.addWord("16", JitGenerator::push16, JitGenerator::build_forth(JitGenerator::push16), nullptr);
+    jc.loggingOFF();
     d.addWord("32", JitGenerator::push32, JitGenerator::build_forth(JitGenerator::push32), nullptr);
     d.addWord("64", JitGenerator::push64, JitGenerator::build_forth(JitGenerator::push64), nullptr);
     d.addWord("-1", JitGenerator::pushNeg1, JitGenerator::build_forth(JitGenerator::pushNeg1), nullptr);
@@ -96,9 +98,9 @@ void add_words()
     d.addWord("OVER", JitGenerator::genOver, JitGenerator::build_forth(JitGenerator::genOver), nullptr);
     d.addWord("ROT", JitGenerator::genRot, JitGenerator::build_forth(JitGenerator::genRot), nullptr);
     d.addWord("SP@", JitGenerator::genDSAT, JitGenerator::build_forth(JitGenerator::genDSAT), nullptr);
-    // add SPBASE
-    d.addWord("SPBASE", JitGenerator::SPBASE, JitGenerator::build_forth(JitGenerator::SPBASE), nullptr);
 
+    // add depth
+    d.addWord("DEPTH", JitGenerator::genDepth, JitGenerator::build_forth(JitGenerator::genDepth), nullptr);
     // add nip and tuck words
     d.addWord("NIP", JitGenerator::genNip, JitGenerator::build_forth(JitGenerator::genNip), nullptr);
     d.addWord("TUCK", JitGenerator::genTuck, JitGenerator::build_forth(JitGenerator::genTuck), nullptr);
@@ -219,7 +221,9 @@ void run_word(const std::string& word)
             std::cout << "Word not found " << word << std::endl;
             return;
         }
-        JitGenerator::exec(w->compiledFunc);
+
+    } else {
+        w->compiledFunc();
     }
 }
 
@@ -239,7 +243,7 @@ void run_words(const std::string& words)
     }
 }
 
-void test_against_ds(std::string words, uint64_t expected_top)
+void test_against_ds(const std::string& words, const uint64_t expected_top)
 {
     std::cout << "Running: " << words << std::endl;
     run_words(words);
@@ -256,10 +260,10 @@ void test_against_ds(std::string words, uint64_t expected_top)
 
 void run_basic_tests()
 {
-    test_against_ds("16 16 + ", 32);
-    test_against_ds("1 2 3 + + ", 6);
-    test_against_ds("1 2 3 ROT  ", 1);
-    test_against_ds("8 8  - ", 0);
+    test_against_ds(" 16 ", 16);
+    test_against_ds(" 16 16 + ", 32);
+    test_against_ds(" 1 2 3 + + ", 6);
+
 }
 
 
@@ -269,13 +273,26 @@ int main()
     {
 
         std::cout << "hello" << std::endl;
-
-
+        jc.loggingOFF();
+        sm.pushDS(10);
         add_words();
+        sm.resetDS();
         d.list_words();
 
-        run_basic_tests();
+
+        jc.loggingON();
+        test_do_loop();
+
+
+
+
         sm.display_stack();
+
+
+
+
+
+
     }
     catch (const std::runtime_error& e)
     {

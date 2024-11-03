@@ -290,6 +290,7 @@ public:
 
             "mov %0, %%rax;" // Move function pointer to rax
             "call *%%rax;" // Call the function
+
             "pop %%r13;" // Restore r13 register
             "pop %%r12;" // Restore r12 register
             "pop %%r11;" // Restore r11 register
@@ -384,6 +385,33 @@ public:
         a.add(asmjit::x86::rsp, 32);
         restoreStackPointers();
     }
+
+
+    static void prim_depth()
+    {
+        const uint64_t depth= sm.getDSDepth();
+        sm.pushDS(depth);
+    }
+
+    static void genDepth()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("gen_emit: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- gen_emit");
+        popDS(asmjit::x86::rcx);
+        preserveStackPointers();
+        // Allocate space for the shadow space (32 bytes).
+        a.sub(asmjit::x86::rsp, 32);
+        a.call(asmjit::imm(reinterpret_cast<void*>(prim_depth)));
+        // Restore stack.
+        a.add(asmjit::x86::rsp, 32);
+        restoreStackPointers();
+    }
+
 
     static void genPushLong()
     {
@@ -1632,12 +1660,14 @@ public:
 
 
 
-
 private:
     // Private constructor to prevent instantiation
     JitGenerator() = default;
     // Private destructor if needed
     ~JitGenerator() = default;
+
+
+
 };
 
 #endif //JITGENERATOR_H
