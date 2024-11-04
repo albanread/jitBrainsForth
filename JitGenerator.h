@@ -9,12 +9,17 @@
 #include "ForthDictionary.h"
 #include <stack>
 #include "StackManager.h"
+#include <variant>
 
 
-// labels for control flow.
+enum LoopType
+{
+    IF_THEN_ELSE,
+    FUNCTION_ENTRY_EXIT,
+    DO_LOOP,
+    BEGIN_AGAIN_REPEAT_UNTIL
+};
 
-
-// Structure to keep track IF .. ELSE .. LEAVE/EXIT .. THEN
 struct IfThenElseLabel
 {
     asmjit::Label ifLabel;
@@ -27,15 +32,11 @@ struct IfThenElseLabel
     bool hasLeave;
 };
 
-inline std::stack<IfThenElseLabel> branchStack;
-
 struct FunctionEntryExitLabel
 {
     asmjit::Label entryLabel;
     asmjit::Label exitLabel;
 };
-
-inline std::stack<FunctionEntryExitLabel> functionsStack;
 
 struct DoLoopLabel
 {
@@ -45,21 +46,14 @@ struct DoLoopLabel
     bool hasLeave;
 };
 
-inline std::stack<DoLoopLabel> doLoopStack;
-
 struct BeginAgainRepeatUntilLabel
 {
-    asmjit::Label beginLabel; // Label for BEGIN
-    asmjit::Label againLabel; // Label for AGAIN
-    asmjit::Label repeatLabel; // Label for REPEAT
-    asmjit::Label untilLabel; // Label for UNTIL
-    asmjit::Label whileLabel; // Label for WHILE
-    asmjit::Label leaveLabel; // Label for LEAVE
-    bool hasAgain; // Flag if AGAIN is present
-    bool hasRepeat; // Flag if REPEAT is present
-    bool hasUntil; // Flag if UNTIL is present
-    bool hasWhile; // Flag if WHILE is present
-    bool hasLeave; // Flag if LEAVE is present
+    asmjit::Label beginLabel;
+    asmjit::Label againLabel;
+    asmjit::Label repeatLabel;
+    asmjit::Label untilLabel;
+    asmjit::Label whileLabel;
+    asmjit::Label leaveLabel;
 
     void print() const
     {
@@ -69,17 +63,64 @@ struct BeginAgainRepeatUntilLabel
         std::cout << "Until Label: " << untilLabel.id() << "\n";
         std::cout << "While Label: " << whileLabel.id() << "\n";
         std::cout << "Leave Label: " << leaveLabel.id() << "\n";
-        std::cout << "Has Again: " << std::boolalpha << hasAgain << "\n";
-        std::cout << "Has Repeat: " << std::boolalpha << hasRepeat << "\n";
-        std::cout << "Has Until: " << std::boolalpha << hasUntil << "\n";
-        std::cout << "Has While: " << std::boolalpha << hasWhile << "\n";
-        std::cout << "Has Leave: " << std::boolalpha << hasLeave << "\n";
     }
 };
 
+using LabelVariant = std::variant<IfThenElseLabel, FunctionEntryExitLabel, DoLoopLabel, BeginAgainRepeatUntilLabel>;
 
-// Stack to manage the BEGIN..AGAIN REPEAT..UNTIL BEGIN WHILE AGAIN loop structures
-inline std::stack<BeginAgainRepeatUntilLabel> beginAgainRepeatUntilStack;
+struct LoopLabel
+{
+    LoopType type;
+    LabelVariant label;
+};
+
+inline std::stack<LoopLabel> loopStack;
+
+inline int doLoopDepth = 0;
+
+inline std::stack<LoopLabel> tempLoopStack;
+
+// save stack to tempLoopStack
+
+static void saveStackToTemp()
+{
+    // Ensure tempLoopStack is empty before use
+    while (!tempLoopStack.empty())
+    {
+        tempLoopStack.pop();
+    }
+
+    while (!loopStack.empty())
+    {
+        tempLoopStack.push(loopStack.top());
+        loopStack.pop();
+    }
+}
+
+static void restoreStackFromTemp()
+{
+    while (!tempLoopStack.empty())
+    {
+        loopStack.push(tempLoopStack.top());
+        tempLoopStack.pop();
+    }
+}
+
+// support locals
+static int arguments_to_local_count;
+static int locals_count;
+static int returned_arguments_count;
+
+struct VariableInfo
+{
+    std::string name;
+    int offset;
+};
+
+static std::unordered_map<std::string, VariableInfo> arguments;
+static std::unordered_map<std::string, VariableInfo> locals;
+static std::unordered_map<std::string, VariableInfo> returnValues;
+
 
 inline JitContext& jc = JitContext::getInstance();
 inline ForthDictionary& d = ForthDictionary::getInstance();
@@ -249,6 +290,29 @@ public:
         a.add(asmjit::x86::r10, 8);
     }
 
+
+    static size_t findLocal(const std::string& word)
+    {
+        const int INVALID_OFFSET = -9999;
+
+        if (arguments.find(word) != arguments.end())
+        {
+            return arguments[word].offset;
+        }
+        else if (locals.find(word) != locals.end())
+        {
+            return locals[word].offset;
+        }
+        else if (returnValues.find(word) != returnValues.end())
+        {
+            return returnValues[word].offset;
+        }
+        else
+        {
+            return INVALID_OFFSET;
+        }
+    }
+
     static void fetchLocal(asmjit::x86::Gp reg, int offset)
     {
         if (!jc.assembler)
@@ -328,7 +392,112 @@ public:
         );
     }
 
-    // Generator methods
+
+    // gen_leftBrace
+    static void gen_leftBrace()
+    {
+        JitContext& jc = JitContext::getInstance();
+
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("gen_leftBrace: Assembler not initialized");
+        }
+
+        // Clear previous data
+        arguments.clear();
+        locals.clear();
+        returnValues.clear();
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- arguments were detected");
+        a.nop();
+
+        const auto& words = *jc.words;
+        size_t pos = jc.pos_next_word + 1; // Start just after the left brace
+
+        enum ParsingMode
+        {
+            ARGUMENTS,
+            LOCALS,
+            RETURN_VALUES
+        } mode = ARGUMENTS;
+
+        int offset = 0;
+        while (pos < words.size())
+        {
+            const std::string& word = words[pos];
+
+            if (word == "}")
+            {
+                break;
+            }
+            else if (word == "|")
+            {
+                mode = LOCALS;
+                offset = 0;
+            }
+            else if (word == "--")
+            {
+                mode = RETURN_VALUES;
+                offset = 0;
+            }
+            else
+            {
+                VariableInfo varInfo = {word, offset};
+                switch (mode)
+                {
+                case ARGUMENTS:
+                    arguments[word] = varInfo;
+                    break;
+                case LOCALS:
+                    locals[word] = varInfo;
+                    break;
+                case RETURN_VALUES:
+                    returnValues[word] = varInfo;
+                    break;
+                }
+                ++offset;
+            }
+            ++pos;
+        }
+
+        jc.pos_last_word = pos;
+    }
+
+
+    //
+    static void copyLocalFromDS(asmjit::x86::Gp reg, int offset)
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("entryFunction: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- copyLocal");
+        a.nop(); // No operation, just for better readability in assembly.
+
+        // Pop from the data stack (r11) to the register.
+        a.pop(reg);
+
+        // Move the value from the register to the appropriate offset in the return stack (r9).
+        a.mov(asmjit::x86::qword_ptr(asmjit::x86::r9, offset), reg);
+    }
+
+    static void zeroStackLocation(int offset)
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("zeroStackLocation: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- Zero Stack Location");
+        asmjit::x86::Gp zeroReg = asmjit::x86::rcx; //
+        a.xor_(zeroReg, zeroReg); // Set zeroReg to zero.
+        a.mov(asmjit::x86::qword_ptr(asmjit::x86::r9, offset), zeroReg); // Move zero into the stack location.
+    }
+
     static void genPrologue()
     {
         jc.resetContext();
@@ -343,20 +512,45 @@ public:
         a.nop();
         entryFunction();
         a.comment(" ; ----- ENTRY label");
-        FunctionEntryExitLabel label;
-        label.entryLabel = a.newLabel();
-        a.bind(label.entryLabel);
-        label.exitLabel = a.newLabel();
-        // save on functionsStack
-        functionsStack.push(label);
 
+        FunctionEntryExitLabel funcLabels;
+        funcLabels.entryLabel = a.newLabel();
+        funcLabels.exitLabel = a.newLabel();
+        a.bind(funcLabels.entryLabel);
 
-        if (logging) printf(" ; gen_prologue: %p\n", jc.assembler);
+        const int totalLocalsCount = arguments_to_local_count + locals_count + returned_arguments_count;
+        if (totalLocalsCount > 0)
+        {
+            a.comment(" ; ----- allocate locals");
+            allocateLocals(totalLocalsCount);
+
+            a.comment(" ; ----- copy args to locals");
+            for (int i = 0; i < arguments_to_local_count; ++i)
+            {
+                asmjit::x86::Gp argReg = asmjit::x86::rcx; // Temporarily use r10 for intermediate storage
+                int offset = (i + 1) * -8; // Offsets are negative as they are allocated downwards from r9.
+                copyLocalFromDS(argReg, offset); // Copy the argument to the return stack
+            }
+
+            a.comment(" ; ----- zero remaining locals");
+            int zeroOutCount = locals_count + returned_arguments_count;
+            for (int j = 0; j < zeroOutCount; ++j)
+            {
+                int offset = (j + arguments_to_local_count + 1) * -8; // Offset relative to the arguments.
+                zeroStackLocation(offset); // Use a helper function to zero out the stack location.
+            }
+        }
+
+        // Save on loopStack
+        const LoopLabel loopLabel{LoopType::FUNCTION_ENTRY_EXIT, funcLabels};
+        loopStack.push(loopLabel);
+
+        if (logging) std::cout << " ; gen_prologue: " << static_cast<void*>(jc.assembler) << "\n";
     }
+
 
     static void genEpilogue()
     {
-        ;
         if (!jc.assembler)
         {
             throw std::runtime_error("gen_epilogue: Assembler not initialized");
@@ -369,19 +563,104 @@ public:
 
         a.comment(" ; ----- EXIT label");
 
-        // check if functionsStack is empty
-        if (functionsStack.empty())
+        // Check if loopStack is empty
+        if (loopStack.empty())
         {
-            throw std::runtime_error("gen_epilogue: functionsStack is empty");
+            throw std::runtime_error("gen_epilogue: loopStack is empty");
         }
 
-        auto label = functionsStack.top();
-        a.bind(label.exitLabel);
-        functionsStack.pop();
+        auto loopLabelVariant = loopStack.top();
+        if (loopLabelVariant.type != LoopType::FUNCTION_ENTRY_EXIT)
+        {
+            throw std::runtime_error("gen_epilogue: Top of loopStack is not a function entry/exit label");
+        }
 
+        const auto& label = std::get<FunctionEntryExitLabel>(loopLabelVariant.label);
+        a.bind(label.exitLabel);
+        loopStack.pop();
+
+        // locals copy return values to stack.
+        const int totalLocalsCount = arguments_to_local_count + locals_count + returned_arguments_count;
+        if (totalLocalsCount > 0)
+        {
+            a.comment(" ; ----- LOCALS in use");
+
+            if (returned_arguments_count > 0)
+            {
+                a.comment(" ; ----- copy any return values to stack");
+                // Copy `returned_arguments_count` values onto the data stack
+                for (int i = 0; i < returned_arguments_count; ++i)
+                {
+                    int offset = (i + arguments_to_local_count + locals_count + 1) * -8;
+                    // Offset relative to the stack base.
+                    asmjit::x86::Gp returnValueReg = asmjit::x86::r10; // Temporarily use r10 for intermediate storage.
+                    a.mov(returnValueReg, asmjit::x86::qword_ptr(asmjit::x86::r9, offset));
+                    // Move the return value from the stack location to the register.
+                    a.push(returnValueReg); // Push the return value onto the data stack (r11).
+                }
+            }
+            // Free the total stack space on the locals stack
+            a.comment(" ; ----- free locals");
+            a.add(asmjit::x86::r9, totalLocalsCount * 8);
+            // Restore the return stack pointer by adding the total local count.
+        }
 
         exitFunction();
         a.ret();
+    }
+
+
+    static void genExit()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("gen_exit: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- gen_exit");
+
+        // Create a temporary stack to hold the popped labels
+        std::stack<LoopLabel> tempStack;
+        bool found = false;
+        FunctionEntryExitLabel exitLabel;
+
+        // Search for the closest FUNCTION_ENTRY_EXIT label
+        while (!loopStack.empty())
+        {
+            LoopLabel topLabel = loopStack.top();
+            loopStack.pop();
+
+            // Check if the current label is of type FUNCTION_ENTRY_EXIT
+            if (topLabel.type == LoopType::FUNCTION_ENTRY_EXIT)
+            {
+                exitLabel = std::get<FunctionEntryExitLabel>(topLabel.label);
+                found = true;
+                break;
+            }
+
+            // Push the label into the temporary stack
+            tempStack.push(topLabel);
+        }
+
+        // Push back all labels to the loopStack
+        while (!tempStack.empty())
+        {
+            loopStack.push(tempStack.top());
+            tempStack.pop();
+        }
+
+        // Handle the case when no FUNCTION_ENTRY_EXIT label is found
+        if (!found)
+        {
+            throw std::runtime_error("gen_exit: No FUNCTION_ENTRY_EXIT label found above current context");
+        }
+
+        // Bind the exit label
+        a.comment(" ; -----Jump to EXIT label");
+        a.bind(exitLabel.exitLabel);
+
+        if (logging) std::cout << " ; gen_exit: Bound to function exit label\n";
     }
 
 
@@ -434,13 +713,9 @@ public:
 
     static void displayBeginLabel(BeginAgainRepeatUntilLabel* label)
     {
-
         // display label contents
         printf(" ; ----- BEGIN label\n");
-
-
     }
-
 
 
     static void genDot()
@@ -602,13 +877,16 @@ public:
         asmjit::x86::Gp currentIndex = asmjit::x86::rdx; // Current index
         asmjit::x86::Gp limit = asmjit::x86::rcx; // Limit
 
-        // current index on top
+        // Pop current index and limit from the data stack
         popDS(currentIndex);
         popDS(limit);
 
         // Push current index and limit onto the return stack
         pushRS(limit);
-        pushRS(currentIndex); // push current index
+        pushRS(currentIndex);
+
+        // Increment the DO loop depth counter
+        doLoopDepth++;
 
         // Create labels for loop start and end
         a.nop();
@@ -620,9 +898,15 @@ public:
         doLoopLabel.leaveLabel = a.newLabel();
         doLoopLabel.hasLeave = false;
         a.bind(doLoopLabel.doLabel);
-        // push loop label to doLoopStack
-        doLoopStack.push(doLoopLabel);
+
+        // Create a LoopLabel struct and push it onto the unified loopStack
+        LoopLabel loopLabel;
+        loopLabel.type = LoopType::DO_LOOP;
+        loopLabel.label = doLoopLabel;
+
+        loopStack.push(loopLabel);
     }
+
 
     static void genLoop()
     {
@@ -631,22 +915,25 @@ public:
             throw std::runtime_error("gen_loop: Assembler not initialized");
         }
 
-        // check if doLoopStack is empty
-        if (doLoopStack.empty())
-            throw std::runtime_error("gen_loop: doLoopStack is empty");
+        // check if loopStack is empty
+        if (loopStack.empty())
+            throw std::runtime_error("gen_loop: loopStack is empty");
 
-        const auto loopLabel = doLoopStack.top();
-        doLoopStack.pop(); // we are the end of the loop.
+        const auto loopLabelVariant = loopStack.top();
+        loopStack.pop(); // We are at the end of the loop.
 
+        if (loopLabelVariant.type != LoopType::DO_LOOP)
+            throw std::runtime_error("gen_loop: Current loop is not a DO loop");
+
+        const auto& loopLabel = std::get<DoLoopLabel>(loopLabelVariant.label);
 
         auto& a = *jc.assembler;
         a.comment(" ; ----- gen_loop");
         a.nop();
 
-
         asmjit::x86::Gp currentIndex = asmjit::x86::rcx; // Current index
         asmjit::x86::Gp limit = asmjit::x86::rdx; // Limit
-        a.nop(); // no-o
+        a.nop(); // no-op
 
         a.comment(" ; Pop current index and limit from return stack");
         popRS(currentIndex);
@@ -657,29 +944,30 @@ public:
         a.comment(" ; Increment current index by 1");
         a.add(currentIndex, 1);
 
-        // Push updated values back onto RS
+        // Push the updated index back onto RS
         a.comment(" ; Push current index back to RS");
-
         pushRS(currentIndex);
 
-        // check if current index is less than limit
+        // Check if current index is less than limit
         a.cmp(currentIndex, limit);
 
         a.comment(" ; Jump to loop start if still looping.");
+        // Jump to loop start if current index is less than the limit
         a.jl(loopLabel.doLabel);
-        // jump to loop start if current index is less than or equal to limit
 
         a.comment(" ; ----- LEAVE and loop label");
         a.bind(loopLabel.loopLabel);
         a.bind(loopLabel.leaveLabel);
 
-        // drop the current index and limit from the return stack
+        // Drop the current index and limit from the return stack
         a.comment(" ; ----- drop loop counters");
         popRS(currentIndex);
         popRS(limit);
         a.nop(); // no-op
-    }
 
+        // Decrement the DO loop depth counter
+        doLoopDepth--;
+    }
 
     static void genPlusLoop()
     {
@@ -688,74 +976,81 @@ public:
             throw std::runtime_error("gen_plus_loop: Assembler not initialized");
         }
 
-        // check if doLoopStack is empty
-        if (doLoopStack.empty())
-            throw std::runtime_error("gen_plus_loop: doLoopStack is empty");
+        // check if loopStack is empty
+        if (loopStack.empty())
+            throw std::runtime_error("gen_plus_loop: loopStack is empty");
 
-        auto loopLabel = doLoopStack.top();
-        doLoopStack.pop(); // we are the end of the loop.
+        const auto loopLabelVariant = loopStack.top();
+        loopStack.pop(); // We are at the end of the loop.
 
+        if (loopLabelVariant.type != LoopType::DO_LOOP)
+            throw std::runtime_error("gen_plus_loop: Current loop is not a DO loop");
+
+        const auto& loopLabel = std::get<DoLoopLabel>(loopLabelVariant.label);
 
         auto& a = *jc.assembler;
         a.comment(" ; ----- gen_plus_loop");
-        a.nop();
 
-
-        // Define registers to use
         asmjit::x86::Gp currentIndex = asmjit::x86::rcx; // Current index
         asmjit::x86::Gp limit = asmjit::x86::rdx; // Limit
         asmjit::x86::Gp increment = asmjit::x86::rsi; // Increment value
 
-        a.nop();
+        a.nop(); // no-op
 
         // Pop current index and limit from return stack
+        a.comment(" ; Pop current index and limit from return stack");
         popRS(currentIndex);
         popRS(limit);
+        a.comment(" ; Pop limit back on return stack");
+        pushRS(limit);
 
         // Pop the increment value from data stack
+        a.comment(" ; Pop the increment value from data stack");
         popDS(increment);
 
         // Add increment to current index
+        a.comment(" ; Add increment to current index");
         a.add(currentIndex, increment);
 
-        // Compare updated current index to limit
+        // Push the updated index back onto RS
+        a.comment(" ; Push current index back to RS");
+        pushRS(currentIndex);
+
+        // Check if current index is less than limit for positive increment
+        // or greater than limit for negative increment
+        a.comment(" ; Check loop condition based on increment direction");
+        a.cmp(increment, 0);
+        asmjit::Label positiveIncrement = a.newLabel();
+        asmjit::Label loopEnd = a.newLabel();
+        a.jg(positiveIncrement);
+
+        // Negative increment
         a.cmp(currentIndex, limit);
+        a.jge(loopLabel.doLabel); // Jump if currentIndex >= limit for negative increment
+        a.jmp(loopEnd); // Skip positive increment check
 
-        // Jump if current index is less than or equal to limit
-        a.jl(loopLabel.doLabel);
+        a.comment(" ; ----- Positive increment");
+        a.bind(positiveIncrement);
+        a.cmp(currentIndex, limit);
+        a.jl(loopLabel.doLabel); // Jump if currentIndex < limit for positive increment
 
-        a.comment(" ; ----- Loop and Leave label");
+        a.comment(" ; ----- LOOP END");
+        a.bind(loopEnd);
+
+        a.comment(" ; ----- LEAVE and loop label");
         a.bind(loopLabel.loopLabel);
         a.bind(loopLabel.leaveLabel);
 
+        // Drop the current index and limit from the return stack
+        a.comment(" ; ----- drop loop counters");
+        popRS(currentIndex);
+        popRS(limit);
         a.nop(); // no-op
 
-        // Clean up loop stack
+        // Decrement the DO loop depth counter
+        doLoopDepth--;
     }
 
-    static void genLeave()
-    {
-        if (!jc.assembler)
-        {
-            throw std::runtime_error("gen_leave: Assembler not initialized");
-        }
-
-
-        auto& a = *jc.assembler;
-        a.comment(" ; ----- gen_leave");
-        a.nop();
-
-        // check if doLoopStack is empty
-        if (doLoopStack.empty())
-            throw std::runtime_error("gen_plus_loop: doLoopStack is empty");
-
-        const auto& loopLabel = doLoopStack.top();
-
-        // Jump to the leave label
-        // the code at leave tidies up the return stack.
-        a.comment(" ; Jumps to the leave label");
-        a.jmp(loopLabel.leaveLabel);
-    }
 
     static void genI()
     {
@@ -766,71 +1061,150 @@ public:
 
         auto& a = *jc.assembler;
         a.comment(" ; ----- gen_I");
-        a.nop();
 
-        // Check if there is at least one loop counter on the return stack
-        if (doLoopStack.empty())
-            throw std::runtime_error("gen_I: doLoopStack is empty");
+        // Check if there is at least one loop counter on the unified stack
+        if (doLoopDepth == 0)
+        {
+            throw std::runtime_error("gen_I: No matching DO_LOOP structure on the stack");
+        }
 
-        // Move the top element (current index) from RS to DS
-        // Assume R10 is RS and R11 is DS
-        asmjit::x86::Gp currentIndex = asmjit::x86::rsi; // Temporary register
+        // Temporary register to hold the current index
+        asmjit::x86::Gp currentIndex = asmjit::x86::rcx;
+
+        // Load the innermost loop index (top of the RS) into currentIndex
         a.comment(" ; Copy top of RS to currentIndex");
-        a.mov(currentIndex, asmjit::x86::ptr(asmjit::x86::r10));
+        a.mov(currentIndex, asmjit::x86::ptr(asmjit::x86::r10)); // Assuming R10 is used for the RS
 
+        // Push currentIndex onto DS
         a.comment(" ; Push currentIndex onto DS");
         pushDS(currentIndex);
     }
+
 
     static void genJ()
     {
         if (!jc.assembler)
         {
-            throw std::runtime_error("gen_J: Assembler not initialized");
+            throw std::runtime_error("gen_j: Assembler not initialized");
+        }
+
+        if (doLoopDepth < 2)
+        {
+            throw std::runtime_error("gen_j: Not enough nested DO-loops available");
         }
 
         auto& a = *jc.assembler;
-        a.comment(" ; ----- gen_J");
-        a.nop();
+        a.comment(" ; ----- gen_j");
 
-        // Check if there are at least two loop counters on the return stack
-        if (doLoopStack.size() < 2)
-            throw std::runtime_error("gen_J: Not enough nested loops for J");
+        asmjit::x86::Gp indexReg = asmjit::x86::rax;
 
-        // Move the third element (outer current index) from RS to DS
-        // Assume R10 is RS and R11 is DS, and RS is full descending
-        asmjit::x86::Gp outerCurrentIndex = asmjit::x86::rsi; // Temporary register
-        a.comment(" ; Copy third element of RS to outerCurrentIndex");
-        a.mov(outerCurrentIndex, asmjit::x86::ptr(asmjit::x86::r10, 2 * sizeof(uint64_t)));
+        // Read `J` (which is at depth - 2)
+        a.comment(" ; Load index of outer loop (depth - 2) into indexReg");
+        a.mov(indexReg, asmjit::x86::ptr(asmjit::x86::r10, 3 * 8)); // Offset for depth - 2 for index
 
-        a.comment(" ; Push outerCurrentIndex onto DS");
-        pushDS(outerCurrentIndex);
+        // Push indexReg onto DS
+        a.comment(" ; Push indexReg onto DS");
+        pushDS(indexReg);
     }
+
 
     static void genK()
     {
         if (!jc.assembler)
         {
-            throw std::runtime_error("gen_K: Assembler not initialized");
+            throw std::runtime_error("gen_k: Assembler not initialized");
+        }
+
+        if (doLoopDepth < 3)
+        {
+            throw std::runtime_error("gen_k: Not enough nested DO-loops available");
         }
 
         auto& a = *jc.assembler;
-        a.comment(" ; ----- gen_K");
+        a.comment(" ; ----- gen_k");
+
+        asmjit::x86::Gp indexReg = asmjit::x86::rax;
+
+        a.comment(" ; Load index of outermost loop (depth - 3) into indexReg");
+        a.mov(indexReg, asmjit::x86::ptr(asmjit::x86::r10, 5 * 8));
+
+        // Push indexReg onto DS
+        a.comment(" ; Push indexReg onto DS");
+        pushDS(indexReg);
+    }
+
+
+    static void genLeave()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("gen_leave: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- gen_leave");
         a.nop();
 
-        // Check if there are at least three loop counters on the return stack
-        if (doLoopStack.size() < 3)
-            throw std::runtime_error("gen_K: Not enough nested loops for K");
+        if (loopStack.empty())
+        {
+            throw std::runtime_error("gen_leave: No loop to leave from");
+        }
 
-        // Move the fifth element (outermost current index) from RS to DS
-        // Assume R10 is RS and R11 is DS, and RS is full descending
-        asmjit::x86::Gp outermostCurrentIndex = asmjit::x86::rsi; // Temporary register
-        a.comment(" ; Copy fifth element of RS to outermostCurrentIndex");
-        a.mov(outermostCurrentIndex, asmjit::x86::ptr(asmjit::x86::r10, 4 * sizeof(uint64_t)));
+        // Save current state of loop stack to temp stack
+        saveStackToTemp();
 
-        a.comment(" ; Push outermostCurrentIndex onto DS");
-        pushDS(outermostCurrentIndex);
+        bool found = false;
+        asmjit::Label targetLabel;
+
+        std::stack<LoopLabel> workingStack = tempLoopStack;
+
+        // Search for the appropriate leave label in the temporary stack
+        while (!workingStack.empty())
+        {
+            LoopLabel topLabel = workingStack.top();
+            workingStack.pop();
+
+            switch (topLabel.type)
+            {
+            case DO_LOOP:
+                {
+                    const auto& loopLabel = std::get<DoLoopLabel>(topLabel.label);
+                    targetLabel = loopLabel.leaveLabel;
+                    found = true;
+                    a.comment(" ; Jumps to do loop's leave label");
+                    break;
+                }
+            case BEGIN_AGAIN_REPEAT_UNTIL:
+                {
+                    const auto& loopLabel = std::get<BeginAgainRepeatUntilLabel>(topLabel.label);
+                    targetLabel = loopLabel.leaveLabel;
+                    found = true;
+                    a.comment(" ; Jumps to begin/again/repeat/until leave label");
+                    break;
+                }
+            default:
+                // Continue to look for the correct label
+                break;
+            }
+
+            if (found)
+            {
+                break;
+            }
+        }
+
+        if (!found)
+        {
+            throw std::runtime_error("gen_leave: No valid loop label found");
+        }
+
+        // Reconstitute the temporary stack back into the loopStack
+        restoreStackFromTemp();
+
+        // Jump to the found leave label
+        a.jmp(targetLabel);
     }
+
 
     static void genBegin()
     {
@@ -844,21 +1218,20 @@ public:
         a.nop();
 
         BeginAgainRepeatUntilLabel beginLabel;
+        // Create all possible labels here.
         beginLabel.beginLabel = a.newLabel();
         beginLabel.untilLabel = a.newLabel();
         beginLabel.againLabel = a.newLabel();
         beginLabel.whileLabel = a.newLabel();
         beginLabel.leaveLabel = a.newLabel();
-        beginLabel.hasAgain = false;
-        beginLabel.hasRepeat = false;
-        beginLabel.hasUntil = false;
-        beginLabel.hasWhile = false;
-        beginLabel.hasLeave = false;
 
         a.comment(" ; LABEL for BEGIN");
         a.bind(beginLabel.beginLabel);
-        beginAgainRepeatUntilStack.push(beginLabel);
+
+        // Push the new label struct onto the unified stack
+        loopStack.push({BEGIN_AGAIN_REPEAT_UNTIL, beginLabel});
     }
+
 
     static void genAgain()
     {
@@ -867,24 +1240,33 @@ public:
             throw std::runtime_error("gen_again: Assembler not initialized");
         }
 
-        if (beginAgainRepeatUntilStack.empty())
+        if (loopStack.empty() || loopStack.top().type != BEGIN_AGAIN_REPEAT_UNTIL)
         {
-            throw std::runtime_error("gen_again: beginAgainRepeatUntilStack is empty");
+            throw std::runtime_error("gen_again: No matching BEGIN_AGAIN_REPEAT_UNTIL structure on the stack");
         }
 
         auto& a = *jc.assembler;
         a.comment(" ; ----- gen_again");
         a.nop();
 
-        auto beginLabel = beginAgainRepeatUntilStack.top();
-        beginAgainRepeatUntilStack.pop();
+        auto beginLabels = std::get<BeginAgainRepeatUntilLabel>(loopStack.top().label);
+        loopStack.pop();
 
-        beginLabel.againLabel = a.newLabel();
-        beginLabel.hasAgain = true;
-        a.jmp(beginLabel.beginLabel);
-        a.bind(beginLabel.againLabel);
-        a.bind(beginLabel.whileLabel);
+        beginLabels.againLabel = a.newLabel();
+        a.jmp(beginLabels.beginLabel);
+
+        a.nop();
+        a.comment("LABEL for AGAIN");
+        a.bind(beginLabels.againLabel);
+        a.nop();
+        a.comment("LABEL for LEAVE");
+        a.bind(beginLabels.leaveLabel);
+
+        a.nop();
+        a.comment("LABEL for WHILE");
+        a.bind(beginLabels.whileLabel);
     }
+
 
     static void genRepeat()
     {
@@ -893,24 +1275,29 @@ public:
             throw std::runtime_error("gen_repeat: Assembler not initialized");
         }
 
-        if (beginAgainRepeatUntilStack.empty())
+        if (loopStack.empty() || loopStack.top().type != BEGIN_AGAIN_REPEAT_UNTIL)
         {
-            throw std::runtime_error("gen_repeat: beginAgainRepeatUntilStack is empty");
+            throw std::runtime_error("gen_repeat: No matching BEGIN_AGAIN_REPEAT_UNTIL structure on the stack");
         }
 
         auto& a = *jc.assembler;
         a.comment(" ; ----- gen_repeat");
         a.nop();
 
-        auto beginLabel = beginAgainRepeatUntilStack.top();
-        beginAgainRepeatUntilStack.pop();
+        auto beginLabels = std::get<BeginAgainRepeatUntilLabel>(loopStack.top().label);
+        loopStack.pop();
 
-        beginLabel.repeatLabel = a.newLabel();
-        beginLabel.hasRepeat = true;
-        a.jmp(beginLabel.beginLabel);
-        a.bind(beginLabel.repeatLabel);
-        a.bind(beginLabel.whileLabel);
+        beginLabels.repeatLabel = a.newLabel();
+        a.jmp(beginLabels.beginLabel);
+        a.bind(beginLabels.repeatLabel);
+        a.nop();
+        a.comment("LABEL for LEAVE");
+        a.bind(beginLabels.leaveLabel);
+        a.comment("LABEL for UNTIL");
+        a.nop();
+        a.bind(beginLabels.whileLabel);
     }
+
 
     static void genUntil()
     {
@@ -919,31 +1306,36 @@ public:
             throw std::runtime_error("gen_until: Assembler not initialized");
         }
 
-        if (beginAgainRepeatUntilStack.empty())
+        if (loopStack.empty() || loopStack.top().type != BEGIN_AGAIN_REPEAT_UNTIL)
         {
-            throw std::runtime_error("gen_until: beginAgainRepeatUntilStack is empty");
+            throw std::runtime_error("gen_until: No matching BEGIN_AGAIN_REPEAT_UNTIL structure on the stack");
         }
 
         auto& a = *jc.assembler;
         a.comment(" ; ----- gen_until");
         a.nop();
 
-        auto beginLabel = beginAgainRepeatUntilStack.top();
-        beginAgainRepeatUntilStack.pop();
+        // Get the label from the unified stack
+        const auto& beginLabels = std::get<BeginAgainRepeatUntilLabel>(loopStack.top().label);
 
         asmjit::x86::Gp topOfStack = asmjit::x86::rax;
 
         popDS(topOfStack);
         a.comment(" ; Jump back to beginLabel if top of stack is zero");
         a.test(topOfStack, topOfStack);
-        a.jz(beginLabel.beginLabel);
+        a.jz(beginLabels.beginLabel);
 
+        a.comment("LABEL for UNTIL");
+        // Bind the appropriate labels
+        a.bind(beginLabels.untilLabel);
+        a.nop();
+        a.comment("LABEL for LEAVE");
+        a.bind(beginLabels.leaveLabel);
 
-        beginLabel.hasUntil = true;
-        a.bind(beginLabel.untilLabel);
-        a.bind(beginLabel.leaveLabel);
-
+        // Pop the stack element as we're done with this construct
+        loopStack.pop();
     }
+
 
     static void genWhile()
     {
@@ -952,33 +1344,25 @@ public:
             throw std::runtime_error("gen_while: Assembler not initialized");
         }
 
-        if (beginAgainRepeatUntilStack.empty())
+        if (loopStack.empty() || loopStack.top().type != BEGIN_AGAIN_REPEAT_UNTIL)
         {
-            throw std::runtime_error("gen_while: beginAgainRepeatUntilStack is empty");
+            throw std::runtime_error("gen_while: No matching BEGIN_AGAIN_REPEAT_UNTIL structure on the stack");
         }
 
         auto& a = *jc.assembler;
         a.comment(" ; ----- gen_while");
         a.nop();
 
-        auto beginLabel = beginAgainRepeatUntilStack.top();
-        beginLabel.whileLabel = a.newLabel();
-        beginLabel.hasWhile = true;
-
+        auto beginLabel = std::get<BeginAgainRepeatUntilLabel>(loopStack.top().label);
         asmjit::x86::Gp topOfStack = asmjit::x86::rax;
-
         popDS(topOfStack);
+
         a.comment(" ; Conditional jump to whileLabel if top of stack is zero");
         a.test(topOfStack, topOfStack);
+        a.comment("Jump to WHILE if zero");
         a.jz(beginLabel.whileLabel);
         a.nop();
-        a.comment()
-        a.bind(beginLabel.leaveLabel);
-
-        beginAgainRepeatUntilStack.pop();
-        beginAgainRepeatUntilStack.push(beginLabel);
     }
-
 
     static void genIf()
     {
@@ -986,6 +1370,7 @@ public:
         {
             throw std::runtime_error("genIf: Assembler not initialized");
         }
+
         auto& a = *jc.assembler;
 
         IfThenElseLabel branches;
@@ -997,8 +1382,9 @@ public:
         branches.hasElse = false;
         branches.hasLeave = false;
         branches.hasExit = false;
-        branchStack.push(branches);
 
+        // Push the new IfThenElseLabel structure onto the unified loopStack
+        loopStack.push({IF_THEN_ELSE, branches});
 
         a.comment(" ; ----- gen_if");
         a.nop();
@@ -1012,6 +1398,7 @@ public:
         a.jz(branches.ifLabel);
     }
 
+
     static void genElse()
     {
         if (!jc.assembler)
@@ -1023,14 +1410,23 @@ public:
         a.comment(" ; ----- gen_else");
         a.nop();
 
-        IfThenElseLabel branches = branchStack.top();
-        a.comment(" ; jump past else block");
-        a.jmp(branches.elseLabel); // Jump to the code after the ELSE block
-        a.comment(" ; ----- label for ELSE");
-        a.bind(branches.ifLabel);
-        branches.hasElse = true;
-        branchStack.pop();
-        branchStack.push(branches);
+        if (!loopStack.empty() && loopStack.top().type == IF_THEN_ELSE)
+        {
+            auto branches = std::get<IfThenElseLabel>(loopStack.top().label);
+            a.comment(" ; jump past else block");
+            a.jmp(branches.elseLabel); // Jump to the code after the ELSE block
+            a.comment(" ; ----- label for ELSE");
+            a.bind(branches.ifLabel);
+            branches.hasElse = true;
+
+            // Update the stack with the modified branches
+            loopStack.pop();
+            loopStack.push({IF_THEN_ELSE, branches});
+        }
+        else
+        {
+            throw std::runtime_error("genElse: No matching IF_THEN_ELSE structure on the stack");
+        }
     }
 
     static void genThen()
@@ -1040,91 +1436,35 @@ public:
             throw std::runtime_error("genThen: Assembler not initialized");
         }
 
-
         auto& a = *jc.assembler;
 
-        IfThenElseLabel branches = branchStack.top();
-        if (branches.hasElse)
+        if (!loopStack.empty() && loopStack.top().type == IF_THEN_ELSE)
         {
-            a.bind(branches.elseLabel); // Bind the ELSE label
-        }
-        else if (branches.hasLeave)
-        {
-            a.bind(branches.leaveLabel); // Bind the leave label
-        }
-        else if (branches.hasExit)
-        {
-            a.bind(branches.exitLabel); // Bind the exit label
-        }
-        else
-        {
-            a.bind(branches.ifLabel);
-        }
-        branchStack.pop();
-    }
-
-
-    static void genExit()
-    {
-        if (!jc.assembler)
-        {
-            throw std::runtime_error("gen_exit: Assembler not initialized");
-        }
-
-        auto& a = *jc.assembler;
-        a.comment(" ; ----- gen_exit");
-        a.nop();
-
-        // First, check if there is any BEGIN... construct to exit from
-        if (!beginAgainRepeatUntilStack.empty())
-        {
-            auto label = beginAgainRepeatUntilStack.top(); // Ensure this is not a const object
-
-            // Depending on the construct, jump to the appropriate label
-            if (label.hasAgain)
+            auto branches = std::get<IfThenElseLabel>(loopStack.top().label);
+            if (branches.hasElse)
             {
-                a.comment(" ; ---- again exit");
-                a.jmp(label.againLabel);
+                a.bind(branches.elseLabel); // Bind the ELSE label
             }
-            else if (label.hasRepeat)
+            else if (branches.hasLeave)
             {
-                a.comment(" ; ---- repeat exit");
-                a.jmp(label.repeatLabel);
+                a.bind(branches.leaveLabel); // Bind the leave label
             }
-            else if (label.hasUntil)
+            else if (branches.hasExit)
             {
-                // Bind a new label for `UNTIL` and jump there (needed to handle UNTIL case correctly)
-                a.comment(" ; ---- until exit");
-                a.jmp(label.untilLabel);
-            }
-            else if (label.hasWhile)
-            {
-                a.comment(" ; ---- while exit");
-                a.jmp(label.whileLabel);
+                a.bind(branches.exitLabel); // Bind the exit label
             }
             else
             {
-
-                label.print();
-                throw std::runtime_error("gen_exit: No appropriate label found in beginAgainRepeatUntilStack");
+                a.bind(branches.ifLabel);
             }
-
-            // Pop the loop construct as we are exiting it
-            beginAgainRepeatUntilStack.pop();
-        } // If not within a loop, check for function exit
-        else if (!functionsStack.empty())
-        {
-            a.comment(" ; ---- function exit");
-            const auto& label = functionsStack.top();
-            a.jmp(label.exitLabel);
+            loopStack.pop();
         }
         else
         {
-            throw std::runtime_error("gen_exit: No loop or function to exit from");
+            throw std::runtime_error("genThen: No matching IF_THEN_ELSE structure on the stack");
         }
     }
 
-    // misc forth generators
 
     static void genSub()
     {
@@ -1530,7 +1870,8 @@ public:
         a.mov(topValue, asmjit::x86::qword_ptr(stackPtr)); // Load top value (TOS)
         a.mov(secondValue, asmjit::x86::qword_ptr(stackPtr, 8)); // Load second value (NOS)
         a.mov(thirdValue, asmjit::x86::qword_ptr(stackPtr, 16)); // Load third value (TOS+2)
-        a.mov(asmjit::x86::qword_ptr(stackPtr), thirdValue); // Store third value in place of top value (TOS = TOS+2)
+        a.mov(asmjit::x86::qword_ptr(stackPtr), thirdValue);
+        // Store third value in place of top value (TOS = TOS+2)
         a.mov(asmjit::x86::qword_ptr(stackPtr, 16), secondValue);
         // Store second value into third position (TOS+2 = NOS)
         a.mov(asmjit::x86::qword_ptr(stackPtr, 8), topValue); // Store top value into second position (NOS = TOS)
@@ -1670,8 +2011,10 @@ public:
     GEN_PUSH_CONSTANT_FN(SPBASE, sm.getDStop())
 
 
-    static void gen1Inc() {
-        if (!jc.assembler) {
+    static void gen1Inc()
+    {
+        if (!jc.assembler)
+        {
             throw std::runtime_error("gen1inc: Assembler not initialized");
         }
 
@@ -1686,8 +2029,10 @@ public:
     }
 
 
-    static void gen1Dec() {
-        if (!jc.assembler) {
+    static void gen1Dec()
+    {
+        if (!jc.assembler)
+        {
             throw std::runtime_error("gen1inc: Assembler not initialized");
         }
 
@@ -1795,7 +2140,8 @@ public:
     GEN_SHIFT_FN(gen4Div, genRightShift, 2)
     GEN_SHIFT_FN(gen8Div, genRightShift, 3)
 
-private:
+private
+:
     // Private constructor to prevent instantiation
     JitGenerator() = default;
     // Private destructor if needed

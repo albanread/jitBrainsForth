@@ -1,5 +1,5 @@
 #include <iostream>
-#include <math.h>
+
 
 #include "include/asmjit/asmjit.h"
 #include "JitContext.h"
@@ -335,24 +335,62 @@ void run_basic_tests()
                       " 0 -1 testNestedIfElse ",
                       2);
 
-   testCompileAndRun("testIfElse",
+    testCompileAndRun("testIfElse",
                       " IF 1 ELSE 2 THEN ",
                       " 0 testIfElse ",
                       2);
 
     testCompileAndRun("testIfElse",
-                   " IF 1 ELSE 2 THEN ",
-                   " -1 testIfElse ",
-                   1);
+                      " IF 1 ELSE 2 THEN ",
+                      " -1 testIfElse ",
+                      1);
 
-    testCompileAndRun("testBeginUntilEarlyExit",
-                      " 0 BEGIN 1+ DUP 5 > IF EXIT THEN DUP 10 = UNTIL ",
-                      " 0 testBeginUntilEarlyExit ",
+
+    // test loop containing if then
+    testCompileAndRun("testBeginUntilNestedIF",
+                      " 0 BEGIN 1+ DUP 5 > IF 65 CR THEN DUP 10 = UNTIL ",
+                      " 8 testBeginUntilNestedIF ",
+                      8);
+
+
+    // this is using "LEAVE" properly
+    testCompileAndRun("testBeginUntilEarlyLeave",
+                      " 0 BEGIN 1+ DUP 5 > IF LEAVE THEN DUP 10 = UNTIL ",
+                      " 0 testBeginUntilEarlyLeave ",
                       6);
 
 
-}
+    // this is using "LEAVE" properly
+    testCompileAndRun("testBeginAGAINLeave",
+                      " 0 BEGIN 1+ DUP 5 > IF LEAVE THEN AGAIN ",
+                      " 0 testBeginAGAINLeave ",
+                      6);
 
+
+    testCompileAndRun("testDoLoop",
+                      " DO I LOOP ",
+                      " 10 1 testDoLoop ",
+                      9);
+
+    testCompileAndRun("testDoPlusLoop",
+                      " DO I 2 +LOOP ",
+                      " 10 1 testDoPlusLoop ",
+                      9);
+
+
+    testCompileAndRun("testDoPlusLoop",
+                        " DO I 2 +LOOP ",
+                        " 10 1 testDoPlusLoop ",
+                        9);
+
+
+    testCompileAndRun("testThreeLevelDeepLoop",
+                      " 3 0 DO  2 0  DO  1 0 DO I J K + + LOOP LOOP LOOP ",
+                      " testThreeLevelDeepLoop ",
+                      5);
+
+
+}
 
 int main()
 {
@@ -362,13 +400,11 @@ int main()
         jc.loggingOFF();
         sm.pushDS(10);
         add_words();
-        // sm.resetDS();
-        // d.list_words();
 
-        //jc.loggingON();
-
-
+        traceon("testThreeLevelDeepLoop");
         run_basic_tests();
+
+
         // sm.display_stack();
     }
     catch (const std::runtime_error& e)

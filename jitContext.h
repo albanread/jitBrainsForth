@@ -3,6 +3,8 @@
 
 #include <iostream>
 #include "include/asmjit/asmjit.h"
+#include <string>
+#include <vector>
 
 class JitContext
 {
@@ -57,7 +59,7 @@ public:
     void loggingOFF()
     {
         logging = false;
-        code.setLogger(nullptr);  // Disable logging
+        code.setLogger(nullptr); // Disable logging
     }
 
 private:
@@ -81,7 +83,6 @@ private:
     }
 
 public:
-
     asmjit::FileLogger logger; // Logs to the standard output
     asmjit::JitRuntime rt;
     asmjit::CodeHolder code;
@@ -104,6 +105,11 @@ public:
     void* ptr_A;
     void* ptr_B;
     bool logging = false;
+
+    // these are for immediate words that read the input stream
+    size_t pos_next_word;
+    size_t pos_last_word;
+    const std::vector<std::string>* words;
 };
 
 #endif // JITCONTEXT_H
