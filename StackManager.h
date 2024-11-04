@@ -120,7 +120,7 @@ private:
         dsPtr = dsStack + 1024*1024*2  - 4;
         rsTop = rsStack + 1024*1024*1  - 4;
         rsPtr = rsStack + 1024*1024*1  - 4;
-        lsTop = lsStack + 1024*1024*1  - 4;
+        lsTop = lsStack + 1024*1024*1  - 64;
         lsPtr = lsStack + 1024*1024*1  - 4;
     }
     ~StackManager() {

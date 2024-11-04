@@ -11,7 +11,7 @@
 #include "StackManager.h"
 #include <variant>
 
-
+const int INVALID_OFFSET = -9999;
 enum LoopType
 {
     IF_THEN_ELSE,
@@ -291,20 +291,23 @@ public:
     }
 
 
-    static size_t findLocal(const std::string& word)
+    static int findLocal(std::string word)
     {
-        const int INVALID_OFFSET = -9999;
-
         if (arguments.find(word) != arguments.end())
         {
+           // printf("\nfindLocal: %s ", word.c_str());
+           // printf("%d\n",arguments[word].offset);
+            jc.offset = arguments[word].offset;
             return arguments[word].offset;
         }
         else if (locals.find(word) != locals.end())
         {
+            jc.offset = arguments[word].offset;
             return locals[word].offset;
         }
         else if (returnValues.find(word) != returnValues.end())
         {
+            jc.offset = arguments[word].offset;
             return returnValues[word].offset;
         }
         else
@@ -325,6 +328,23 @@ public:
         a.nop();
         a.mov(reg, asmjit::x86::qword_ptr(asmjit::x86::r9, offset));
         pushDS(reg);
+    }
+
+
+    static void genPushLocal(int offset)
+    {
+        printf("genPushLocal %d\n", offset);
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("entryFunction: Assembler not initialized");
+        }
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- fetchLocal");
+        asmjit::x86::Gp reg = asmjit::x86::ecx;
+        a.nop();
+        a.mov(reg, asmjit::x86::qword_ptr(asmjit::x86::r9, offset));
+        pushDS(reg);
+
     }
 
     static void storeLocal(asmjit::x86::Gp reg, int offset)
@@ -393,6 +413,10 @@ public:
     }
 
 
+    // static int arguments_to_local_count;
+    // static int locals_count;
+   // static int returned_arguments_count;
+
     // gen_leftBrace
     static void gen_leftBrace()
     {
@@ -409,7 +433,7 @@ public:
         returnValues.clear();
 
         auto& a = *jc.assembler;
-        a.comment(" ; ----- arguments were detected");
+        a.comment(" ; ----- locals were detected");
         a.nop();
 
         const auto& words = *jc.words;
@@ -434,34 +458,66 @@ public:
             else if (word == "|")
             {
                 mode = LOCALS;
-                offset = 0;
             }
             else if (word == "--")
             {
                 mode = RETURN_VALUES;
-                offset = 0;
             }
             else
             {
+                printf("word: %s at %d\n", word.c_str(), offset);
                 VariableInfo varInfo = {word, offset};
                 switch (mode)
                 {
                 case ARGUMENTS:
+                    a.comment(" ; ----- argument was detected");
                     arguments[word] = varInfo;
+                    arguments_to_local_count++;
                     break;
                 case LOCALS:
+                    a.comment(" ; ----- local was detected");
                     locals[word] = varInfo;
+                    locals_count++;
                     break;
                 case RETURN_VALUES:
+                    a.comment(" ; ----- return value was detected");
                     returnValues[word] = varInfo;
+                    returned_arguments_count++;
                     break;
                 }
-                ++offset;
+                offset+=8;
             }
             ++pos;
         }
 
         jc.pos_last_word = pos;
+
+        // generate locals code
+        const int totalLocalsCount = arguments_to_local_count + locals_count + returned_arguments_count;
+        if (totalLocalsCount > 0)
+        {
+            a.comment(" ; ----- allocate locals");
+            allocateLocals(totalLocalsCount);
+
+            a.comment(" ; ----- copy args to locals");
+            for (int i = 0; i < arguments_to_local_count; ++i)
+            {
+                asmjit::x86::Gp argReg = asmjit::x86::rcx; // Temporarily use r10 for intermediate storage
+                int offset = i * 8; // Offsets are are allocated upwards from r9.
+                copyLocalFromDS(argReg, offset); // Copy the argument to the return stack
+            }
+
+            a.comment(" ; ----- zero remaining locals");
+            int zeroOutCount = locals_count + returned_arguments_count;
+            for (int j = 0; j < zeroOutCount; ++j)
+            {
+                int offset = (j + arguments_to_local_count ) * 8; // Offset relative to the arguments.
+                zeroStackLocation(offset); // Use a helper function to zero out the stack location.
+            }
+        }
+
+
+
     }
 
 
@@ -475,12 +531,8 @@ public:
 
         auto& a = *jc.assembler;
         a.comment(" ; ----- copyLocal");
-        a.nop(); // No operation, just for better readability in assembly.
-
         // Pop from the data stack (r11) to the register.
-        a.pop(reg);
-
-        // Move the value from the register to the appropriate offset in the return stack (r9).
+        popDS(reg);
         a.mov(asmjit::x86::qword_ptr(asmjit::x86::r9, offset), reg);
     }
 
@@ -518,28 +570,6 @@ public:
         funcLabels.exitLabel = a.newLabel();
         a.bind(funcLabels.entryLabel);
 
-        const int totalLocalsCount = arguments_to_local_count + locals_count + returned_arguments_count;
-        if (totalLocalsCount > 0)
-        {
-            a.comment(" ; ----- allocate locals");
-            allocateLocals(totalLocalsCount);
-
-            a.comment(" ; ----- copy args to locals");
-            for (int i = 0; i < arguments_to_local_count; ++i)
-            {
-                asmjit::x86::Gp argReg = asmjit::x86::rcx; // Temporarily use r10 for intermediate storage
-                int offset = (i + 1) * -8; // Offsets are negative as they are allocated downwards from r9.
-                copyLocalFromDS(argReg, offset); // Copy the argument to the return stack
-            }
-
-            a.comment(" ; ----- zero remaining locals");
-            int zeroOutCount = locals_count + returned_arguments_count;
-            for (int j = 0; j < zeroOutCount; ++j)
-            {
-                int offset = (j + arguments_to_local_count + 1) * -8; // Offset relative to the arguments.
-                zeroStackLocation(offset); // Use a helper function to zero out the stack location.
-            }
-        }
 
         // Save on loopStack
         const LoopLabel loopLabel{LoopType::FUNCTION_ENTRY_EXIT, funcLabels};
@@ -547,6 +577,7 @@ public:
 
         if (logging) std::cout << " ; gen_prologue: " << static_cast<void*>(jc.assembler) << "\n";
     }
+
 
 
     static void genEpilogue()

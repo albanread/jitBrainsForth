@@ -100,6 +100,7 @@ public:
     int32_t int32;
     int16_t int16;
     int8_t int8;
+    int offset;
     float f;
     double d;
     void* ptr_A;

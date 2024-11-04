@@ -142,10 +142,9 @@ void add_words()
     d.addWord("K", nullptr, nullptr, JitGenerator::genK);
     d.addWord("EXIT", nullptr, nullptr, JitGenerator::genExit);
     d.addWord("LEAVE", nullptr, nullptr, JitGenerator::genLeave);
-
+    d.addWord("{", nullptr, nullptr, JitGenerator::gen_leftBrace);
     compileWord("SQ", "DUP *");
 }
-
 
 void run_word(const std::string& word)
 {
@@ -390,6 +389,11 @@ void run_basic_tests()
                       5);
 
 
+    testCompileAndRun("testLocals",
+                       " { a b } a b + ",
+                       " 10 1 testLocals ",
+                       11);
+
 }
 
 int main()
@@ -401,7 +405,7 @@ int main()
         sm.pushDS(10);
         add_words();
 
-        traceon("testThreeLevelDeepLoop");
+        traceon("testLocals");
         run_basic_tests();
 
 
