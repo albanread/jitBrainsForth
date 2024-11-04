@@ -345,6 +345,11 @@ void run_basic_tests()
                    " -1 testIfElse ",
                    1);
 
+    testCompileAndRun("testBeginUntilEarlyExit",
+                      " 0 BEGIN 1+ DUP 5 > IF EXIT THEN DUP 10 = UNTIL ",
+                      " 0 testBeginUntilEarlyExit ",
+                      6);
+
 
 }
 

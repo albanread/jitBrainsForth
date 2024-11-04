@@ -60,7 +60,23 @@ struct BeginAgainRepeatUntilLabel
     bool hasUntil; // Flag if UNTIL is present
     bool hasWhile; // Flag if WHILE is present
     bool hasLeave; // Flag if LEAVE is present
+
+    void print() const
+    {
+        std::cout << "Begin Label: " << beginLabel.id() << "\n";
+        std::cout << "Again Label: " << againLabel.id() << "\n";
+        std::cout << "Repeat Label: " << repeatLabel.id() << "\n";
+        std::cout << "Until Label: " << untilLabel.id() << "\n";
+        std::cout << "While Label: " << whileLabel.id() << "\n";
+        std::cout << "Leave Label: " << leaveLabel.id() << "\n";
+        std::cout << "Has Again: " << std::boolalpha << hasAgain << "\n";
+        std::cout << "Has Repeat: " << std::boolalpha << hasRepeat << "\n";
+        std::cout << "Has Until: " << std::boolalpha << hasUntil << "\n";
+        std::cout << "Has While: " << std::boolalpha << hasWhile << "\n";
+        std::cout << "Has Leave: " << std::boolalpha << hasLeave << "\n";
+    }
 };
+
 
 // Stack to manage the BEGIN..AGAIN REPEAT..UNTIL BEGIN WHILE AGAIN loop structures
 inline std::stack<BeginAgainRepeatUntilLabel> beginAgainRepeatUntilStack;
@@ -91,7 +107,6 @@ public:
         return instance;
     }
 
-    static void genOr();
 
     // Delete copy constructor and assignment operator to prevent copies
     JitGenerator(const JitGenerator&) = delete;
@@ -413,6 +428,19 @@ public:
         a.add(asmjit::x86::rsp, 32);
         restoreStackPointers();
     }
+
+
+    // display labels
+
+    static void displayBeginLabel(BeginAgainRepeatUntilLabel* label)
+    {
+
+        // display label contents
+        printf(" ; ----- BEGIN label\n");
+
+
+    }
+
 
 
     static void genDot()
@@ -817,6 +845,10 @@ public:
 
         BeginAgainRepeatUntilLabel beginLabel;
         beginLabel.beginLabel = a.newLabel();
+        beginLabel.untilLabel = a.newLabel();
+        beginLabel.againLabel = a.newLabel();
+        beginLabel.whileLabel = a.newLabel();
+        beginLabel.leaveLabel = a.newLabel();
         beginLabel.hasAgain = false;
         beginLabel.hasRepeat = false;
         beginLabel.hasUntil = false;
@@ -906,9 +938,11 @@ public:
         a.test(topOfStack, topOfStack);
         a.jz(beginLabel.beginLabel);
 
-        beginLabel.untilLabel = a.newLabel();
+
         beginLabel.hasUntil = true;
         a.bind(beginLabel.untilLabel);
+        a.bind(beginLabel.leaveLabel);
+
     }
 
     static void genWhile()
@@ -937,6 +971,9 @@ public:
         a.comment(" ; Conditional jump to whileLabel if top of stack is zero");
         a.test(topOfStack, topOfStack);
         a.jz(beginLabel.whileLabel);
+        a.nop();
+        a.comment()
+        a.bind(beginLabel.leaveLabel);
 
         beginAgainRepeatUntilStack.pop();
         beginAgainRepeatUntilStack.push(beginLabel);
@@ -1057,7 +1094,6 @@ public:
             else if (label.hasUntil)
             {
                 // Bind a new label for `UNTIL` and jump there (needed to handle UNTIL case correctly)
-                label.untilLabel = a.newLabel();
                 a.comment(" ; ---- until exit");
                 a.jmp(label.untilLabel);
             }
@@ -1068,6 +1104,8 @@ public:
             }
             else
             {
+
+                label.print();
                 throw std::runtime_error("gen_exit: No appropriate label found in beginAgainRepeatUntilStack");
             }
 

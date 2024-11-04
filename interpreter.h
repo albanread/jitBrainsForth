@@ -17,8 +17,8 @@ inline void compileWord(const std::string& wordName, const std::string& compileT
     jc.loggingOFF();
     logging=false;
     // how to look at logs, and asm code.
-    //if (wordName == "testBeginAgain") logging=true;
-    //if (wordName == "testBeginAgain") jc.loggingON();
+    if (wordName == "testBeginUntilEarlyExit") logging=true;
+    if (wordName == "testBeginUntilEarlyExit") jc.loggingON();
 
     if (logging) printf("\nCompiler v2: compiling word: [%s]\n", wordName.c_str());
 
