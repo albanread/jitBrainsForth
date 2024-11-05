@@ -12,6 +12,7 @@
 #include <variant>
 
 const int INVALID_OFFSET = -9999;
+
 enum LoopType
 {
     IF_THEN_ELSE,
@@ -120,6 +121,9 @@ struct VariableInfo
 static std::unordered_map<std::string, VariableInfo> arguments;
 static std::unordered_map<std::string, VariableInfo> locals;
 static std::unordered_map<std::string, VariableInfo> returnValues;
+static std::unordered_map<int, std::string> argumentsByOffset;
+static std::unordered_map<int, std::string> localsByOffset;
+static std::unordered_map<int, std::string> returnValuesByOffset;
 
 
 inline JitContext& jc = JitContext::getInstance();
@@ -152,6 +156,19 @@ public:
     // Delete copy constructor and assignment operator to prevent copies
     JitGenerator(const JitGenerator&) = delete;
     JitGenerator& operator=(const JitGenerator&) = delete;
+
+
+    static void commentWithWord(const std::string& baseComment)
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("entryFunction: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        const std::string comment = baseComment + " [" + jc.word + "]";
+        a.comment(comment.c_str());
+    }
 
 
     static void entryFunction()
@@ -291,23 +308,22 @@ public:
     }
 
 
-    static int findLocal(std::string word)
+    // Function to find local by name
+    static int findLocal(const std::string& word)
     {
         if (arguments.find(word) != arguments.end())
         {
-           // printf("\nfindLocal: %s ", word.c_str());
-           // printf("%d\n",arguments[word].offset);
             jc.offset = arguments[word].offset;
             return arguments[word].offset;
         }
         else if (locals.find(word) != locals.end())
         {
-            jc.offset = arguments[word].offset;
+            jc.offset = locals[word].offset;
             return locals[word].offset;
         }
         else if (returnValues.find(word) != returnValues.end())
         {
-            jc.offset = arguments[word].offset;
+            jc.offset = returnValues[word].offset;
             return returnValues[word].offset;
         }
         else
@@ -315,6 +331,47 @@ public:
             return INVALID_OFFSET;
         }
     }
+
+
+    // Function to find local by offset
+    static std::string findLocalByOffset(int offset)
+    {
+        if (argumentsByOffset.find(offset) != argumentsByOffset.end())
+        {
+            return argumentsByOffset[offset];
+        }
+        else if (localsByOffset.find(offset) != localsByOffset.end())
+        {
+            return localsByOffset[offset];
+        }
+        else if (returnValuesByOffset.find(offset) != returnValuesByOffset.end())
+        {
+            return returnValuesByOffset[offset];
+        }
+        else
+        {
+            return ""; // Return an empty string if not found
+        }
+    }
+
+    static void addArgument(const std::string& name, int offset)
+    {
+        arguments[name] = {name, offset};
+        argumentsByOffset[offset] = name;
+    }
+
+    static void addLocal(const std::string& name, int offset)
+    {
+        locals[name] = {name, offset};
+        localsByOffset[offset] = name;
+    }
+
+    static void addReturnValue(const std::string& name, int offset)
+    {
+        returnValues[name] = {name, offset};
+        returnValuesByOffset[offset] = name;
+    }
+
 
     static void fetchLocal(asmjit::x86::Gp reg, int offset)
     {
@@ -339,12 +396,15 @@ public:
             throw std::runtime_error("entryFunction: Assembler not initialized");
         }
         auto& a = *jc.assembler;
-        a.comment(" ; ----- fetchLocal");
+
+
+        jc.word = findLocalByOffset(offset);
+
+        commentWithWord(" ; ----- fetchLocal");
         asmjit::x86::Gp reg = asmjit::x86::ecx;
         a.nop();
         a.mov(reg, asmjit::x86::qword_ptr(asmjit::x86::r9, offset));
         pushDS(reg);
-
     }
 
     static void storeLocal(asmjit::x86::Gp reg, int offset)
@@ -412,12 +472,18 @@ public:
         );
     }
 
+    static void commentWithWord(const std::string& baseComment, const std::string& word)
+    {
+        JitContext& jc = JitContext::getInstance();
+        if (jc.assembler)
+        {
+            std::string comment = baseComment + " " + word;
+            jc.assembler->comment(comment.c_str());
+        }
+    }
 
-    // static int arguments_to_local_count;
-    // static int locals_count;
-   // static int returned_arguments_count;
 
-    // gen_leftBrace
+    // gen_leftBrace, processes the locals brace { a b | cd -- e } etc.
     static void gen_leftBrace()
     {
         JitContext& jc = JitContext::getInstance();
@@ -429,11 +495,18 @@ public:
 
         // Clear previous data
         arguments.clear();
+        argumentsByOffset.clear();
         locals.clear();
+        localsByOffset.clear();
         returnValues.clear();
+        returnValuesByOffset.clear();
+        arguments_to_local_count = 0;
+        locals_count =0;
+        returned_arguments_count=0;
+
 
         auto& a = *jc.assembler;
-        a.comment(" ; ----- locals were detected");
+        a.comment(" ; ----- leftBrace: locals detected");
         a.nop();
 
         const auto& words = *jc.words;
@@ -450,6 +523,7 @@ public:
         while (pos < words.size())
         {
             const std::string& word = words[pos];
+            jc.word = word;
 
             if (word == "}")
             {
@@ -465,59 +539,97 @@ public:
             }
             else
             {
-                printf("word: %s at %d\n", word.c_str(), offset);
-                VariableInfo varInfo = {word, offset};
+                commentWithWord(" ; ----- prepare  ", word);
                 switch (mode)
                 {
                 case ARGUMENTS:
-                    a.comment(" ; ----- argument was detected");
-                    arguments[word] = varInfo;
+                    commentWithWord(" ; ----- argument ", word);
+                    addArgument(word, offset);
                     arguments_to_local_count++;
                     break;
                 case LOCALS:
-                    a.comment(" ; ----- local was detected");
-                    locals[word] = varInfo;
+                    commentWithWord(" ; ----- local ", word);
+                    addLocal(word, offset);
                     locals_count++;
                     break;
                 case RETURN_VALUES:
-                    a.comment(" ; ----- return value was detected");
-                    returnValues[word] = varInfo;
+                    commentWithWord(" ; ----- return value ", word);
+                    addReturnValue(word, offset);
                     returned_arguments_count++;
                     break;
                 }
-                offset+=8;
+                offset += 8;
             }
             ++pos;
         }
 
+        /*
+        printf("arguments_to_local_count: %d\n", arguments_to_local_count);
+        printf("locals_count: %d\n", locals_count);
+        printf("returned_arguments_count: %d\n", returned_arguments_count);
+        */
+
+
+
         jc.pos_last_word = pos;
 
-        // generate locals code
+        // Generate locals code
         const int totalLocalsCount = arguments_to_local_count + locals_count + returned_arguments_count;
         if (totalLocalsCount > 0)
         {
             a.comment(" ; ----- allocate locals");
             allocateLocals(totalLocalsCount);
 
-            a.comment(" ; ----- copy args to locals");
+            a.comment(" ; --- BEGIN copy args to locals");
             for (int i = 0; i < arguments_to_local_count; ++i)
             {
-                asmjit::x86::Gp argReg = asmjit::x86::rcx; // Temporarily use r10 for intermediate storage
-                int offset = i * 8; // Offsets are are allocated upwards from r9.
+                asmjit::x86::Gp argReg = asmjit::x86::rcx;
+                int offset = i * 8; // Offsets are allocated upwards from r9.
+                jc.word = findLocalByOffset(offset);
                 copyLocalFromDS(argReg, offset); // Copy the argument to the return stack
             }
+            a.comment(" ; --- END copy args to locals");
 
-            a.comment(" ; ----- zero remaining locals");
+            a.comment(" ; --- BEGIN zero remaining locals");
             int zeroOutCount = locals_count + returned_arguments_count;
             for (int j = 0; j < zeroOutCount; ++j)
             {
-                int offset = (j + arguments_to_local_count ) * 8; // Offset relative to the arguments.
+                int offset = (j + arguments_to_local_count) * 8; // Offset relative to the arguments.
+                jc.word = findLocalByOffset(offset);
                 zeroStackLocation(offset); // Use a helper function to zero out the stack location.
             }
+            a.comment(" ; --- END zero remaining locals");
+        }
+    }
+
+    // TO - this is an immediate word that pops the stack and
+    // stores it in the next word, assuming that is a value or a local.
+
+    static void genTO()
+    {
+        const auto& words = *jc.words;
+        size_t pos = jc.pos_next_word + 1;
+
+        std::string w = words[pos];
+        jc.word = w;
+        // this needs to be a word, we can store things in.
+
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("entryFunction: Assembler not initialized");
         }
 
+        auto& a = *jc.assembler;
 
 
+        int offset = findLocal(w);
+        if (offset != INVALID_OFFSET)
+        {
+            commentWithWord("; TO ----- pop stack into ");
+            popDS(asmjit::x86::ecx);
+            a.mov(asmjit::x86::qword_ptr(asmjit::x86::r9, offset), asmjit::x86::ecx);
+        }
+        jc.pos_last_word = pos;
     }
 
 
@@ -530,7 +642,7 @@ public:
         }
 
         auto& a = *jc.assembler;
-        a.comment(" ; ----- copyLocal");
+        commentWithWord(" ; ----- pop from stack into ");
         // Pop from the data stack (r11) to the register.
         popDS(reg);
         a.mov(asmjit::x86::qword_ptr(asmjit::x86::r9, offset), reg);
@@ -544,12 +656,13 @@ public:
         }
 
         auto& a = *jc.assembler;
-        a.comment(" ; ----- Zero Stack Location");
+        commentWithWord(" ; ----- Clearing ");
         asmjit::x86::Gp zeroReg = asmjit::x86::rcx; //
         a.xor_(zeroReg, zeroReg); // Set zeroReg to zero.
         a.mov(asmjit::x86::qword_ptr(asmjit::x86::r9, offset), zeroReg); // Move zero into the stack location.
     }
 
+    // prologue happens when we begin a new word.
     static void genPrologue()
     {
         jc.resetContext();
@@ -579,7 +692,7 @@ public:
     }
 
 
-
+    // happens just before the function returns
     static void genEpilogue()
     {
         if (!jc.assembler)
@@ -640,7 +753,7 @@ public:
         a.ret();
     }
 
-
+    // exit jump off the word.
     static void genExit()
     {
         if (!jc.assembler)
@@ -695,6 +808,7 @@ public:
     }
 
 
+    // spit out a charachter
     static void genEmit()
     {
         if (!jc.assembler)

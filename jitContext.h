@@ -64,8 +64,33 @@ public:
 
 private:
     // Private constructor to prevent instantiation
-    JitContext() : rt(), assembler(nullptr), logger(stdout)
-    {
+JitContext() :
+    rt(),
+    assembler(nullptr),
+    logger(stdout),
+    uint64_A(0),
+    uint64_B(0),
+    uint32_A(0),
+    uint32_B(0),
+    uint16(0),
+    uint8(0),
+    int64_A(0),
+    int64_B(0),
+    int32(0),
+    int16(0),
+    int8(0),
+    offset(0),
+    f(0.0f),
+    d(0.0),
+    ptr_A(nullptr),
+    ptr_B(nullptr),
+    logging(false),
+    pos_next_word(0),
+    pos_last_word(0),
+    words(nullptr),
+    word()
+
+{
         // Initialization code
         code.init(rt.environment());
         assembler = new asmjit::x86::Assembler(&code);
@@ -111,6 +136,7 @@ public:
     size_t pos_next_word;
     size_t pos_last_word;
     const std::vector<std::string>* words;
+    std::string word;
 };
 
 #endif // JITCONTEXT_H
