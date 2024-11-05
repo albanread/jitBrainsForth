@@ -143,6 +143,10 @@ void add_words()
     d.addWord("EXIT", nullptr, nullptr, JitGenerator::genExit);
     d.addWord("LEAVE", nullptr, nullptr, JitGenerator::genLeave);
     d.addWord("{", nullptr, nullptr, JitGenerator::gen_leftBrace);
+    d.addWord("to", nullptr, nullptr, JitGenerator::genTO);
+
+
+
     compileWord("SQ", "DUP *");
 }
 
@@ -394,6 +398,11 @@ void run_basic_tests()
                        " 10 1 testLocals ",
                        11);
 
+    testCompileAndRun("testLocals2",
+                       " { a b | c } a b + to c c "
+                       "",
+                       " 10 6 testLocals2 ",
+                       16);
 }
 
 int main()
@@ -405,7 +414,7 @@ int main()
         sm.pushDS(10);
         add_words();
 
-        traceon("testLocals");
+        traceon("testLocals2");
         run_basic_tests();
 
 
