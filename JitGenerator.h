@@ -132,12 +132,14 @@ inline StackManager& sm = StackManager::getInstance();
 
 inline extern void prim_emit(const uint64_t a)
 {
-    printf("; prim_emit: %d\n", a);
-    putchar(a);
+    char c = static_cast<char>(a & 0xFF);
+    std::cout << c;
 }
 
 static bool logging = false;
 
+// using ExecFunc = void (*)(ForthFunction);
+// ExecFunc exec;
 
 class JitGenerator
 {
@@ -181,15 +183,33 @@ public:
         auto& a = *jc.assembler;
         a.comment(" ; ----- entryFunction");
         a.nop();
-        a.comment("; load datastack to R11");
-        a.mov(asmjit::x86::rax, reinterpret_cast<uint64_t>(&sm.dsPtr));
-        a.mov(asmjit::x86::r11, asmjit::x86::qword_ptr(asmjit::x86::rax));
-        a.comment("; load return stack to R10");
-        a.mov(asmjit::x86::rax, reinterpret_cast<uint64_t>(&sm.rsPtr));
-        a.mov(asmjit::x86::r10, asmjit::x86::qword_ptr(asmjit::x86::rax));
-        a.comment("; load local stack to R9");
-        a.mov(asmjit::x86::rax, reinterpret_cast<uint64_t>(&sm.lsPtr));
-        a.mov(asmjit::x86::r9, asmjit::x86::qword_ptr(asmjit::x86::rax));
+
+        // Check R15 for the value 0xA1B2C3D4
+        /*a.comment(" ; Check if R15 is 0xA1B2C3D4");
+        a.mov(asmjit::x86::rax, 0xA1B2C3D4);
+        a.cmp(asmjit::x86::r15, asmjit::x86::rax);
+
+        // Jump over the loading code if R15 matches the value 0xA1B2C3D4
+        asmjit::Label skipLoad = a.newLabel();
+        a.je(skipLoad);*/
+
+        // Load datastack to r15
+       // a.comment("; load datastack to r15");
+       // a.mov(asmjit::x86::rax, reinterpret_cast<uint64_t>(&sm.dsPtr));
+        //a.mov(asmjit::x86::r15, asmjit::x86::qword_ptr(asmjit::x86::rax));
+
+        // Load return stack to r14
+        // a.comment("; load return stack to r14");
+        // a.mov(asmjit::x86::rax, reinterpret_cast<uint64_t>(&sm.rsPtr));
+        // a.mov(asmjit::x86::r14, asmjit::x86::qword_ptr(asmjit::x86::rax));
+
+        // Load local stack to r13
+        // a.comment("; load local stack to r13");
+        // a.mov(asmjit::x86::rax, reinterpret_cast<uint64_t>(&sm.lsPtr));
+        // a.mov(asmjit::x86::r13, asmjit::x86::qword_ptr(asmjit::x86::rax));
+
+        // Label to skip to if R15 is 0xA1B2C3D4
+        //a.bind(skipLoad);
     }
 
     static void exitFunction()
@@ -201,47 +221,65 @@ public:
 
         auto& a = *jc.assembler;
 
-        a.comment(" ; ----- exitFunction");
-        a.nop();
-        a.comment("; save datastack from R11");
-        a.mov(asmjit::x86::rax, reinterpret_cast<uint64_t>(&sm.dsPtr));
-        a.mov(asmjit::x86::qword_ptr(asmjit::x86::rax), asmjit::x86::r11);
-        a.comment("; save return stack from R10");
-        a.mov(asmjit::x86::rax, reinterpret_cast<uint64_t>(&sm.rsPtr));
-        a.mov(asmjit::x86::qword_ptr(asmjit::x86::rax), asmjit::x86::r10);
-        a.comment("; save local stack from R9");
-        a.mov(asmjit::x86::rax, reinterpret_cast<uint64_t>(&sm.lsPtr));
-        a.mov(asmjit::x86::qword_ptr(asmjit::x86::rax), asmjit::x86::r9);
+
+        /*
+        // Check R15 for the value 0xA1B2C3D4
+        a.comment(" ; Check if R15 is 0xA1B2C3D4");
+        a.mov(asmjit::x86::rax, 0xA1B2C3D4);
+        a.cmp(asmjit::x86::r15, asmjit::x86::rax);
+        // Jump over the loading code if R15 matches the value 0xA1B2C3D4
+        asmjit::Label skipLoad = a.newLabel();
+        a.je(skipLoad);*/
+
+       //  a.comment(" ; ----- exitFunction");
+       //  a.nop();
+       //  a.comment("; save datastack from r15");
+       // // a.mov(asmjit::x86::rax, reinterpret_cast<uint64_t>(&sm.dsPtr));
+       // // a.mov(asmjit::x86::qword_ptr(asmjit::x86::rax), asmjit::x86::r15);
+       //  a.comment("; save return stack from r14");
+       //  a.mov(asmjit::x86::rax, reinterpret_cast<uint64_t>(&sm.rsPtr));
+       //  a.mov(asmjit::x86::qword_ptr(asmjit::x86::rax), asmjit::x86::r14);
+       //  a.comment("; save local stack from r13");
+       //  a.mov(asmjit::x86::rax, reinterpret_cast<uint64_t>(&sm.lsPtr));
+       //  a.mov(asmjit::x86::qword_ptr(asmjit::x86::rax), asmjit::x86::r13);
+        // Label to skip to if R15 is 0xA1B2C3D4
+        //a.bind(skipLoad);
     }
+
 
     // preserve stack pointers
     static void preserveStackPointers()
     {
-        if (!jc.assembler)
-        {
-            throw std::runtime_error("entryFunction: Assembler not initialized");
-        }
-        auto& a = *jc.assembler;
-        a.comment(" ; preserve r9, r10, r11, stack pointers on dsp");
-        // preserve R9, R10, R11 on dsp
-        a.push(asmjit::x86::r9);
-        a.push(asmjit::x86::r10);
-        a.push(asmjit::x86::r11);
+        // if (!jc.assembler)
+        // {
+        //     throw std::runtime_error("entryFunction: Assembler not initialized");
+        // }
+        // auto& a = *jc.assembler;
+        // a.comment(" ; preserve r13, r14, r15, stack pointers on dsp");
+        // // preserve r13, r14, r15 on dsp
+        //
+        // a.push(asmjit::x86::r8);
+        // a.push(asmjit::x86::r13);
+        // a.push(asmjit::x86::r14);
+        // a.push(asmjit::x86::r15);
+        // a.push(asmjit::x86::r15);
     }
 
 
     static void restoreStackPointers()
     {
-        if (!jc.assembler)
-        {
-            throw std::runtime_error("entryFunction: Assembler not initialized");
-        }
-        auto& a = *jc.assembler;
-        a.comment(" ; restore r9, r10, r11, stack pointers from dsp");
-        // restore R9, R10, R11 on dsp
-        a.pop(asmjit::x86::r11);
-        a.pop(asmjit::x86::r10);
-        a.pop(asmjit::x86::r9);
+        // if (!jc.assembler)
+        // {
+        //     throw std::runtime_error("entryFunction: Assembler not initialized");
+        // }
+        // auto& a = *jc.assembler;
+        // a.comment(" ; restore r13, r14, r15, stack pointers from dsp");
+        // // restore r13, r14, r15 on dsp
+        // a.pop(asmjit::x86::r15);
+        // a.pop(asmjit::x86::r15);
+        // a.pop(asmjit::x86::r14);
+        // a.pop(asmjit::x86::r13);
+        // a.pop(asmjit::x86::r8);
     }
 
 
@@ -256,10 +294,10 @@ public:
 
         auto& a = *jc.assembler;
         a.comment(" ; ----- pushDS");
-        a.comment(" ; save value to the data stack (R11)");
+        a.comment(" ; save value to the data stack (r15)");
         a.nop();
-        a.sub(asmjit::x86::r11, 8);
-        a.mov(asmjit::x86::qword_ptr(asmjit::x86::r11), reg);
+        a.sub(asmjit::x86::r15, 8);
+        a.mov(asmjit::x86::qword_ptr(asmjit::x86::r15), reg);
     }
 
     static void popDS(asmjit::x86::Gp reg)
@@ -271,10 +309,10 @@ public:
 
         auto& a = *jc.assembler;
         a.comment(" ; ----- popDS");
-        a.comment(" ; fetch value from the data stack (R11)");
+        a.comment(" ; fetch value from the data stack (r15)");
         a.nop();
-        a.mov(reg, asmjit::x86::qword_ptr(asmjit::x86::r11));
-        a.add(asmjit::x86::r11, 8);
+        a.mov(reg, asmjit::x86::qword_ptr(asmjit::x86::r15));
+        a.add(asmjit::x86::r15, 8);
     }
 
     static void pushRS(asmjit::x86::Gp reg)
@@ -286,10 +324,10 @@ public:
 
         auto& a = *jc.assembler;
         a.comment(" ; ----- pushRS");
-        a.comment(" ; save value to the return stack (R10)");
+        a.comment(" ; save value to the return stack (r14)");
         a.nop();
-        a.sub(asmjit::x86::r10, 8);
-        a.mov(asmjit::x86::qword_ptr(asmjit::x86::r10), reg);
+        a.sub(asmjit::x86::r14, 8);
+        a.mov(asmjit::x86::qword_ptr(asmjit::x86::r14), reg);
     }
 
     static void popRS(asmjit::x86::Gp reg)
@@ -301,10 +339,10 @@ public:
 
         auto& a = *jc.assembler;
         a.comment(" ; ----- popRS");
-        a.comment(" ; fetch value from the return stack (R10)");
+        a.comment(" ; fetch value from the return stack (r14)");
         a.nop();
-        a.mov(reg, asmjit::x86::qword_ptr(asmjit::x86::r10));
-        a.add(asmjit::x86::r10, 8);
+        a.mov(reg, asmjit::x86::qword_ptr(asmjit::x86::r14));
+        a.add(asmjit::x86::r14, 8);
     }
 
 
@@ -383,7 +421,7 @@ public:
         auto& a = *jc.assembler;
         a.comment(" ; ----- fetchLocal");
         a.nop();
-        a.mov(reg, asmjit::x86::qword_ptr(asmjit::x86::r9, offset));
+        a.mov(reg, asmjit::x86::qword_ptr(asmjit::x86::r13, offset));
         pushDS(reg);
     }
 
@@ -403,7 +441,7 @@ public:
         commentWithWord(" ; ----- fetchLocal");
         asmjit::x86::Gp reg = asmjit::x86::ecx;
         a.nop();
-        a.mov(reg, asmjit::x86::qword_ptr(asmjit::x86::r9, offset));
+        a.mov(reg, asmjit::x86::qword_ptr(asmjit::x86::r13, offset));
         pushDS(reg);
     }
 
@@ -418,7 +456,7 @@ public:
         a.comment(" ; ----- storeLocal");
         a.nop();
         popDS(reg);
-        a.mov(asmjit::x86::qword_ptr(asmjit::x86::r9, offset), reg);
+        a.mov(asmjit::x86::qword_ptr(asmjit::x86::r13, offset), reg);
     }
 
     static void allocateLocals(int count)
@@ -429,48 +467,9 @@ public:
         }
 
         auto& a = *jc.assembler;
-        a.sub(asmjit::x86::r9, count * 8);
+        a.sub(asmjit::x86::r13, count * 8);
     }
 
-    static void exec(void (*func)())
-    {
-        __asm__ __volatile__ (
-            "push %%rbp;" // Save base pointer
-            "mov %%rsp, %%rbp;" // Set base pointer to top of stack
-            "push %%rbx;" // Save rbx register
-            "push %%rcx;" // Save rcx register
-            "push %%rdx;" // Save rdx register
-            "push %%rsi;" // Save rsi register
-            "push %%rdi;" // Save rdi register
-            "push %%r8;" // Save r8 register
-            "push %%r9;" // Save r9 register
-            "push %%r10;" // Save r10 register
-            "push %%r11;" // Save r11 register
-            "push %%r12;" // Save r12 register
-            "push %%r13;" // Save r13 register
-
-            "mov %0, %%rax;" // Move function pointer to rax
-            "call *%%rax;" // Call the function
-
-            "pop %%r13;" // Restore r13 register
-            "pop %%r12;" // Restore r12 register
-            "pop %%r11;" // Restore r11 register
-            "pop %%r10;" // Restore r10 register
-            "pop %%r9;" // Restore r9 register
-            "pop %%r8;" // Restore r8 register
-            "pop %%rdi;" // Restore rdi register
-            "pop %%rsi;" // Restore rsi register
-            "pop %%rdx;" // Restore rdx register
-            "pop %%rcx;" // Restore rcx register
-            "pop %%rbx;" // Restore rbx register
-            "leave;" // Restore base pointer
-            "ret;" // Return
-
-            :
-            : "r" (func)
-            : "rax"
-        );
-    }
 
     static void commentWithWord(const std::string& baseComment, const std::string& word)
     {
@@ -501,8 +500,8 @@ public:
         returnValues.clear();
         returnValuesByOffset.clear();
         arguments_to_local_count = 0;
-        locals_count =0;
-        returned_arguments_count=0;
+        locals_count = 0;
+        returned_arguments_count = 0;
 
 
         auto& a = *jc.assembler;
@@ -570,7 +569,6 @@ public:
         */
 
 
-
         jc.pos_last_word = pos;
 
         // Generate locals code
@@ -584,7 +582,7 @@ public:
             for (int i = 0; i < arguments_to_local_count; ++i)
             {
                 asmjit::x86::Gp argReg = asmjit::x86::rcx;
-                int offset = i * 8; // Offsets are allocated upwards from r9.
+                int offset = i * 8; // Offsets are allocated upwards from r13.
                 jc.word = findLocalByOffset(offset);
                 copyLocalFromDS(argReg, offset); // Copy the argument to the return stack
             }
@@ -627,7 +625,7 @@ public:
         {
             commentWithWord("; TO ----- pop stack into ");
             popDS(asmjit::x86::ecx);
-            a.mov(asmjit::x86::qword_ptr(asmjit::x86::r9, offset), asmjit::x86::ecx);
+            a.mov(asmjit::x86::qword_ptr(asmjit::x86::r13, offset), asmjit::x86::ecx);
         }
         jc.pos_last_word = pos;
     }
@@ -643,9 +641,9 @@ public:
 
         auto& a = *jc.assembler;
         commentWithWord(" ; ----- pop from stack into ");
-        // Pop from the data stack (r11) to the register.
+        // Pop from the data stack (r15) to the register.
         popDS(reg);
-        a.mov(asmjit::x86::qword_ptr(asmjit::x86::r9, offset), reg);
+        a.mov(asmjit::x86::qword_ptr(asmjit::x86::r13, offset), reg);
     }
 
     static void zeroStackLocation(int offset)
@@ -659,7 +657,7 @@ public:
         commentWithWord(" ; ----- Clearing ");
         asmjit::x86::Gp zeroReg = asmjit::x86::rcx; //
         a.xor_(zeroReg, zeroReg); // Set zeroReg to zero.
-        a.mov(asmjit::x86::qword_ptr(asmjit::x86::r9, offset), zeroReg); // Move zero into the stack location.
+        a.mov(asmjit::x86::qword_ptr(asmjit::x86::r13, offset), zeroReg); // Move zero into the stack location.
     }
 
     // prologue happens when we begin a new word.
@@ -677,6 +675,7 @@ public:
         a.nop();
         entryFunction();
         a.comment(" ; ----- ENTRY label");
+
 
         FunctionEntryExitLabel funcLabels;
         funcLabels.entryLabel = a.newLabel();
@@ -701,6 +700,10 @@ public:
         }
 
         auto& a = *jc.assembler;
+
+
+        jc.epilogueLabel = a.newLabel();
+        a.bind(jc.epilogueLabel);
 
         a.nop();
         a.comment(" ; ----- gen_epilogue");
@@ -735,23 +738,28 @@ public:
                 // Copy `returned_arguments_count` values onto the data stack
                 for (int i = 0; i < returned_arguments_count; ++i)
                 {
-                    int offset = (i + arguments_to_local_count + locals_count + 1) * -8;
+                    int offset = (i + arguments_to_local_count + locals_count) * 8;
                     // Offset relative to the stack base.
-                    asmjit::x86::Gp returnValueReg = asmjit::x86::r10; // Temporarily use r10 for intermediate storage.
-                    a.mov(returnValueReg, asmjit::x86::qword_ptr(asmjit::x86::r9, offset));
+                    jc.word = findLocalByOffset(offset);
+
+                    commentWithWord(" ; ----- copy return value ");
+                    asmjit::x86::Gp returnValueReg = asmjit::x86::ecx;
+                    a.mov(returnValueReg, asmjit::x86::qword_ptr(asmjit::x86::r13, offset));
                     // Move the return value from the stack location to the register.
-                    a.push(returnValueReg); // Push the return value onto the data stack (r11).
+                    pushDS(returnValueReg); // Push the return value onto the data stack (r15).
                 }
             }
             // Free the total stack space on the locals stack
             a.comment(" ; ----- free locals");
-            a.add(asmjit::x86::r9, totalLocalsCount * 8);
+            a.add(asmjit::x86::r13, totalLocalsCount * 8);
             // Restore the return stack pointer by adding the total local count.
         }
 
-        exitFunction();
+         exitFunction();
+        // Free the total stack space on the return stack pointer.
         a.ret();
     }
+
 
     // exit jump off the word.
     static void genExit()
@@ -821,13 +829,16 @@ public:
         popDS(asmjit::x86::rcx);
         preserveStackPointers();
         // Allocate space for the shadow space (32 bytes).
-        a.sub(asmjit::x86::rsp, 32);
-        a.call(asmjit::imm(reinterpret_cast<void*>(putchar)));
-        // Restore stack.
-        a.add(asmjit::x86::rsp, 32);
+        a.sub(asmjit::x86::rsp, 40);
+        a.call(asmjit::imm(reinterpret_cast<void*>(prim_emit)));
+        a.add(asmjit::x86::rsp, 40);
         restoreStackPointers();
     }
 
+    static void dotS()
+    {
+
+    }
 
     static void prim_forget()
     {
@@ -1003,11 +1014,57 @@ public:
             throw std::runtime_error("gen_call: Assembler not initialized");
         }
         auto& a = *jc.assembler;
+        exitFunction();
+        
         a.comment(" ; ----- gen_call");
         a.mov(asmjit::x86::rax, fn);
         a.call(asmjit::x86::rax);
+ 
     }
 
+
+
+    // Executable function pointer
+
+
+
+    /*
+    static ExecFunc endExec()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("end: Assembler not initialized");
+        }
+        // Finalize the function
+        ExecFunc func;
+        if (const asmjit::Error err = jc.rt.add(&func, &jc.code))
+        {
+            throw std::runtime_error(asmjit::DebugUtils::errorAsString(err));
+        }
+
+        return func;
+    }
+
+
+    static void generateExecFunction()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("gen_push_long: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- gen_exec");
+
+        a.mov(asmjit::x86::rax, asmjit::x86::ptr(asmjit::x86::rsp, 8));
+        a.call(asmjit::x86::rax);
+
+        a.ret();
+
+        const ExecFunc new_func = endExec();
+        exec = new_func;
+    }
+    */
 
     static void genDo()
     {
@@ -1218,7 +1275,7 @@ public:
 
         // Load the innermost loop index (top of the RS) into currentIndex
         a.comment(" ; Copy top of RS to currentIndex");
-        a.mov(currentIndex, asmjit::x86::ptr(asmjit::x86::r10)); // Assuming R10 is used for the RS
+        a.mov(currentIndex, asmjit::x86::ptr(asmjit::x86::r14)); // Assuming r14 is used for the RS
 
         // Push currentIndex onto DS
         a.comment(" ; Push currentIndex onto DS");
@@ -1245,7 +1302,7 @@ public:
 
         // Read `J` (which is at depth - 2)
         a.comment(" ; Load index of outer loop (depth - 2) into indexReg");
-        a.mov(indexReg, asmjit::x86::ptr(asmjit::x86::r10, 3 * 8)); // Offset for depth - 2 for index
+        a.mov(indexReg, asmjit::x86::ptr(asmjit::x86::r14, 3 * 8)); // Offset for depth - 2 for index
 
         // Push indexReg onto DS
         a.comment(" ; Push indexReg onto DS");
@@ -1271,7 +1328,7 @@ public:
         asmjit::x86::Gp indexReg = asmjit::x86::rax;
 
         a.comment(" ; Load index of outermost loop (depth - 3) into indexReg");
-        a.mov(indexReg, asmjit::x86::ptr(asmjit::x86::r10, 5 * 8));
+        a.mov(indexReg, asmjit::x86::ptr(asmjit::x86::r14, 5 * 8));
 
         // Push indexReg onto DS
         a.comment(" ; Push indexReg onto DS");
@@ -1621,17 +1678,17 @@ public:
         auto& a = *jc.assembler;
         a.comment(" ; ----- genSub");
 
-        // Assuming r11 is the stack pointer
-        asmjit::x86::Gp stackPtr = asmjit::x86::r11;
+        // Assuming r15 is the stack pointer
+        asmjit::x86::Gp ds = asmjit::x86::r15;
         asmjit::x86::Gp firstVal = asmjit::x86::rax;
 
         // Pop two values from the stack, subtract the first from the second, and push the result
 
         a.comment(" ; Pop two values from the stack");
-        a.mov(firstVal, asmjit::x86::qword_ptr(stackPtr)); // Load first value
-        a.add(stackPtr, 8); // Adjust stack pointer
+        a.mov(firstVal, asmjit::x86::qword_ptr(ds)); // Load first value
+        a.add(ds, 8); // Adjust stack pointer
 
-        a.sub(asmjit::x86::qword_ptr(stackPtr), firstVal); // Subtract first value from second value
+        a.sub(asmjit::x86::qword_ptr(ds), firstVal); // Subtract first value from second value
     }
 
 
@@ -1645,17 +1702,14 @@ public:
         auto& a = *jc.assembler;
         a.comment(" ; ----- genPlus");
 
-        // Assuming r11 is the stack pointer
-        asmjit::x86::Gp stackPtr = asmjit::x86::r11;
         asmjit::x86::Gp firstVal = asmjit::x86::rax;
-
-        // Pop two values from the stack, add them, and push the result
+        asmjit::x86::Gp secondVal = asmjit::x86::rbx;
 
         a.comment(" ; Add two values from the stack");
-        a.mov(firstVal, asmjit::x86::qword_ptr(stackPtr)); // Load first value
-        a.add(stackPtr, 8); // Adjust stack pointer
-        a.comment(" ; Add firstval to the stack");
-        a.add(asmjit::x86::qword_ptr(stackPtr), firstVal); // Add first value to second value
+        popDS(firstVal);
+        popDS(secondVal);
+        a.add(secondVal, firstVal); // Add first value to second value
+        pushDS(secondVal);
     }
 
     static void genDiv()
@@ -1668,27 +1722,27 @@ public:
         auto& a = *jc.assembler;
         a.comment(" ; ----- genDiv");
 
-        // Assuming r11 is the stack pointer
-        asmjit::x86::Gp stackPtr = asmjit::x86::r11;
+        // Assuming r15 is the stack pointer
+        asmjit::x86::Gp ds = asmjit::x86::r15;
         asmjit::x86::Gp dividend = asmjit::x86::rax;
         asmjit::x86::Gp divisor = asmjit::x86::rcx;
 
         // Pop two values from the stack, divide the first by the second, and push the quotient
 
         a.comment(" ; Perform / division");
-        a.mov(divisor, asmjit::x86::qword_ptr(stackPtr)); // Load the second value (divisor)
-        a.add(stackPtr, 8); // Adjust stack pointer
+        a.mov(divisor, asmjit::x86::qword_ptr(ds)); // Load the second value (divisor)
+        a.add(ds, 8); // Adjust stack pointer
 
-        a.mov(dividend, asmjit::x86::qword_ptr(stackPtr)); // Load the first value (dividend)
-        a.add(stackPtr, 8); // Adjust stack pointer
+        a.mov(dividend, asmjit::x86::qword_ptr(ds)); // Load the first value (dividend)
+        a.add(ds, 8); // Adjust stack pointer
 
         a.mov(asmjit::x86::rdx, 0); // Clear RDX for unsigned division
         // RAX already contains the dividend (first value)
 
         a.idiv(divisor); // Perform signed division: RDX:RAX / divisor
 
-        a.sub(stackPtr, 8); // Adjust stack pointer back
-        a.mov(asmjit::x86::qword_ptr(stackPtr), asmjit::x86::rax); // Store quotient back on stack
+        a.sub(ds, 8); // Adjust stack pointer back
+        a.mov(asmjit::x86::qword_ptr(ds), asmjit::x86::rax); // Store quotient back on stack
     }
 
     static void genMul()
@@ -1701,23 +1755,23 @@ public:
         auto& a = *jc.assembler;
         a.comment(" ; ----- genMul");
 
-        // Assuming r11 is the stack pointer
-        asmjit::x86::Gp stackPtr = asmjit::x86::r11;
+        // Assuming r15 is the stack pointer
+        asmjit::x86::Gp ds = asmjit::x86::r15;
         asmjit::x86::Gp firstVal = asmjit::x86::rax;
         asmjit::x86::Gp secondVal = asmjit::x86::rdx;
 
         // Pop two values from the stack, multiply them, and push the result
 
         a.comment(" ; * -multiply two values from the stack");
-        a.mov(firstVal, asmjit::x86::qword_ptr(stackPtr)); // Load first value
-        a.add(stackPtr, 8); // Adjust stack pointer
+        a.mov(firstVal, asmjit::x86::qword_ptr(ds)); // Load first value
+        a.add(ds, 8); // Adjust stack pointer
 
-        a.mov(secondVal, asmjit::x86::qword_ptr(stackPtr)); // Load second value
+        a.mov(secondVal, asmjit::x86::qword_ptr(ds)); // Load second value
 
         a.imul(firstVal, secondVal); // Multiply first and second value, result in firstVal
 
         a.comment(" ; Push the result onto the stack");
-        a.mov(asmjit::x86::qword_ptr(stackPtr), firstVal); // Store result back on stack
+        a.mov(asmjit::x86::qword_ptr(ds), firstVal); // Store result back on stack
     }
 
 
@@ -1733,21 +1787,21 @@ public:
         auto& a = *jc.assembler;
         a.comment(" ; ----- genEq");
 
-        // Assuming r11 is the stack pointer
-        asmjit::x86::Gp stackPtr = asmjit::x86::r11;
+        // Assuming r15 is the stack pointer
+        asmjit::x86::Gp ds = asmjit::x86::r15;
         asmjit::x86::Gp firstVal = asmjit::x86::rax;
 
         // Pop two values, compare them and push the result (0 or -1)
         a.comment(" ; Pop two values compare them and push the result (0 or -1)");
-        a.mov(firstVal, asmjit::x86::qword_ptr(stackPtr)); // Load first value
-        a.add(stackPtr, 8); // Adjust stack pointer
+        a.mov(firstVal, asmjit::x86::qword_ptr(ds)); // Load first value
+        a.add(ds, 8); // Adjust stack pointer
 
-        a.cmp(asmjit::x86::qword_ptr(stackPtr), firstVal); // Compare with second value
+        a.cmp(asmjit::x86::qword_ptr(ds), firstVal); // Compare with second value
         a.sete(asmjit::x86::al); // Set AL to 1 if equal
 
         a.neg(asmjit::x86::al); // Set AL to -1 if true, 0 if false
         a.movsx(asmjit::x86::rax, asmjit::x86::al); // Sign-extend AL to RAX (-1 or 0)
-        a.mov(asmjit::x86::qword_ptr(stackPtr), asmjit::x86::rax); // Store result on stack
+        a.mov(asmjit::x86::qword_ptr(ds), asmjit::x86::rax); // Store result on stack
     }
 
     static void genLt()
@@ -1760,19 +1814,19 @@ public:
         auto& a = *jc.assembler;
         a.comment(" ; ----- genLt");
 
-        // Assuming r11 is the stack pointer
-        asmjit::x86::Gp stackPtr = asmjit::x86::r11;
+        // Assuming r15 is the stack pointer
+        asmjit::x86::Gp ds = asmjit::x86::r15;
         asmjit::x86::Gp firstVal = asmjit::x86::rax;
         asmjit::x86::Gp secondVal = asmjit::x86::rdx;
 
         // Pop two values, compare them and push the result (0 or -1)
         a.comment(" ; < compare them and push the result (0 or -1)");
 
-        a.mov(firstVal, asmjit::x86::qword_ptr(stackPtr)); // Load first value
-        a.add(stackPtr, 8); // Adjust stack pointer
+        a.mov(firstVal, asmjit::x86::qword_ptr(ds)); // Load first value
+        a.add(ds, 8); // Adjust stack pointer
 
-        a.mov(secondVal, asmjit::x86::qword_ptr(stackPtr)); // Load second value
-        a.add(stackPtr, 8); // Adjust stack pointer
+        a.mov(secondVal, asmjit::x86::qword_ptr(ds)); // Load second value
+        a.add(ds, 8); // Adjust stack pointer
 
         a.cmp(secondVal, firstVal); // Compare second value to first value
         a.setl(asmjit::x86::al); // Set AL to 1 if secondVal < firstVal
@@ -1780,8 +1834,8 @@ public:
         a.movzx(asmjit::x86::rax, asmjit::x86::al); // Zero-extend AL to RAX
         a.neg(asmjit::x86::rax); // Set RAX to -1 if true (1 -> -1), 0 remains 0
 
-        a.sub(stackPtr, 8); // Adjust stack pointer
-        a.mov(asmjit::x86::qword_ptr(stackPtr), asmjit::x86::rax); // Store result on stack
+        a.sub(ds, 8); // Adjust stack pointer
+        a.mov(asmjit::x86::qword_ptr(ds), asmjit::x86::rax); // Store result on stack
     }
 
     static void genGt()
@@ -1794,21 +1848,21 @@ public:
         auto& a = *jc.assembler;
         a.comment(" ; ----- genGt");
 
-        // Assuming r11 is the stack pointer
-        asmjit::x86::Gp stackPtr = asmjit::x86::r11;
+        // Assuming r15 is the stack pointer
+        asmjit::x86::Gp ds = asmjit::x86::r15;
         asmjit::x86::Gp firstVal = asmjit::x86::rax;
 
         // Pop two values, compare them and push the result (0 or -1)
         a.comment(" ; > compare them and push the result (0 or -1)");
-        a.mov(firstVal, asmjit::x86::qword_ptr(stackPtr)); // Load first value
-        a.add(stackPtr, 8); // Adjust stack pointer
+        a.mov(firstVal, asmjit::x86::qword_ptr(ds)); // Load first value
+        a.add(ds, 8); // Adjust stack pointer
 
-        a.cmp(asmjit::x86::qword_ptr(stackPtr), firstVal); // Compare with second value
+        a.cmp(asmjit::x86::qword_ptr(ds), firstVal); // Compare with second value
         a.setg(asmjit::x86::al); // Set AL to 1 if greater
 
         a.neg(asmjit::x86::al); // Set AL to -1 if true, 0 if false
         a.movsx(asmjit::x86::rax, asmjit::x86::al); // Sign-extend AL to RAX (-1 or 0)
-        a.mov(asmjit::x86::qword_ptr(stackPtr), asmjit::x86::rax); // Store result on stack
+        a.mov(asmjit::x86::qword_ptr(ds), asmjit::x86::rax); // Store result on stack
     }
 
     static void genNot()
@@ -1821,17 +1875,17 @@ public:
         auto& a = *jc.assembler;
         a.comment(" ; ----- genNot");
 
-        // Assuming r11 is the stack pointer
-        asmjit::x86::Gp stackPtr = asmjit::x86::r11;
+        // Assuming r15 is the stack pointer
+        asmjit::x86::Gp ds = asmjit::x86::r15;
 
         // Load the value from the stack
-        a.mov(asmjit::x86::rax, asmjit::x86::qword_ptr(stackPtr)); // Load value
+        a.mov(asmjit::x86::rax, asmjit::x86::qword_ptr(ds)); // Load value
 
         // Use the `NOT` operation to flip the bits
         a.not_(asmjit::x86::rax); // Perform NOT operation
 
         // Store the result back on the stack
-        a.mov(asmjit::x86::qword_ptr(stackPtr), asmjit::x86::rax); // Store result back on stack
+        a.mov(asmjit::x86::qword_ptr(ds), asmjit::x86::rax); // Store result back on stack
     }
 
     static void genAnd()
@@ -1844,18 +1898,18 @@ public:
         auto& a = *jc.assembler;
         a.comment(" ; ----- genAnd");
 
-        // Assuming r11 is the stack pointer
-        asmjit::x86::Gp stackPtr = asmjit::x86::r11;
+        // Assuming r15 is the stack pointer
+        asmjit::x86::Gp ds = asmjit::x86::r15;
         asmjit::x86::Gp firstVal = asmjit::x86::rax;
 
         // Pop two values, perform AND, and push the result
         a.comment(" ; AND two values and push the result");
-        a.mov(firstVal, asmjit::x86::qword_ptr(stackPtr)); // Load first value
-        a.add(stackPtr, 8); // Adjust stack pointer
+        a.mov(firstVal, asmjit::x86::qword_ptr(ds)); // Load first value
+        a.add(ds, 8); // Adjust stack pointer
 
-        a.and_(firstVal, asmjit::x86::qword_ptr(stackPtr)); // Perform AND with second value
+        a.and_(firstVal, asmjit::x86::qword_ptr(ds)); // Perform AND with second value
 
-        a.mov(asmjit::x86::qword_ptr(stackPtr), firstVal); // Store result back on stack
+        a.mov(asmjit::x86::qword_ptr(ds), firstVal); // Store result back on stack
     }
 
 
@@ -1869,18 +1923,18 @@ public:
         auto& a = *jc.assembler;
         a.comment(" ; ----- genOR");
 
-        // Assuming r11 is the stack pointer
-        asmjit::x86::Gp stackPtr = asmjit::x86::r11;
+        // Assuming r15 is the stack pointer
+        asmjit::x86::Gp ds = asmjit::x86::r15;
         asmjit::x86::Gp firstVal = asmjit::x86::rax;
 
         // Pop two values, perform OR, and push the result
         a.comment(" ; OR two values and push the result");
-        a.mov(firstVal, asmjit::x86::qword_ptr(stackPtr)); // Load first value
-        a.add(stackPtr, 8); // Adjust stack pointer
+        a.mov(firstVal, asmjit::x86::qword_ptr(ds)); // Load first value
+        a.add(ds, 8); // Adjust stack pointer
 
-        a.or_(firstVal, asmjit::x86::qword_ptr(stackPtr)); // Perform OR with second value
+        a.or_(firstVal, asmjit::x86::qword_ptr(ds)); // Perform OR with second value
 
-        a.mov(asmjit::x86::qword_ptr(stackPtr), firstVal); // Store result back on stack
+        a.mov(asmjit::x86::qword_ptr(ds), firstVal); // Store result back on stack
     }
 
 
@@ -1894,18 +1948,18 @@ public:
         auto& a = *jc.assembler;
         a.comment(" ; ----- genXOR");
 
-        // Assuming r11 is the stack pointer
-        asmjit::x86::Gp stackPtr = asmjit::x86::r11;
+        // Assuming r15 is the stack pointer
+        asmjit::x86::Gp ds = asmjit::x86::r15;
         asmjit::x86::Gp firstVal = asmjit::x86::rax;
 
         // Pop two values, perform XOR, and push the result
         a.comment(" ; XOR two values and push the result");
-        a.mov(firstVal, asmjit::x86::qword_ptr(stackPtr)); // Load first value
-        a.add(stackPtr, 8); // Adjust stack pointer
+        a.mov(firstVal, asmjit::x86::qword_ptr(ds)); // Load first value
+        a.add(ds, 8); // Adjust stack pointer
 
-        a.xor_(firstVal, asmjit::x86::qword_ptr(stackPtr)); // Perform XOR with second value
+        a.xor_(firstVal, asmjit::x86::qword_ptr(ds)); // Perform XOR with second value
 
-        a.mov(asmjit::x86::qword_ptr(stackPtr), firstVal); // Store result back on stack
+        a.mov(asmjit::x86::qword_ptr(ds), firstVal); // Store result back on stack
     }
 
     // stack ops
@@ -1920,12 +1974,12 @@ public:
         auto& a = *jc.assembler;
         a.comment(" ; ----- genDSAT");
 
-        asmjit::x86::Gp stackPtr = asmjit::x86::r11; // stack pointer in r11
+        asmjit::x86::Gp ds = asmjit::x86::r15; // stack pointer in r15
         asmjit::x86::Gp tempReg = asmjit::x86::rax; // temporary register to hold the stack pointer value
 
         // Move the stack pointer to the temporary register
         a.comment(" ; SP@ - Get the stack pointer value");
-        a.mov(tempReg, stackPtr);
+        a.mov(tempReg, ds);
 
         // Push the stack pointer value onto the data stack
         a.comment(" ; Push the stack pointer value onto the data stack");
@@ -1944,10 +1998,10 @@ public:
         auto& a = *jc.assembler;
         a.comment(" ; ----- genDrop");
 
-        // Assuming r11 is the stack pointer
+        // Assuming r15 is the stack pointer
         a.comment(" ; drop top value");
-        asmjit::x86::Gp stackPtr = asmjit::x86::r11;
-        a.add(stackPtr, 8); // Adjust stack pointer to drop the top value
+        asmjit::x86::Gp ds = asmjit::x86::r15;
+        a.add(ds, 8); // Adjust stack pointer to drop the top value
     }
 
 
@@ -1961,15 +2015,15 @@ public:
         auto& a = *jc.assembler;
         a.comment(" ; ----- genDup");
 
-        // Assuming r11 is the stack pointer
-        asmjit::x86::Gp stackPtr = asmjit::x86::r11;
+        // Assuming r15 is the stack pointer
+        asmjit::x86::Gp ds = asmjit::x86::r15;
         asmjit::x86::Gp topValue = asmjit::x86::rax;
 
         // Duplicate the top value on the stack
         a.comment(" ; Duplicate the top value on the stack");
-        a.mov(topValue, asmjit::x86::qword_ptr(stackPtr)); // Load top value
-        a.sub(stackPtr, 8); // Adjust stack pointer
-        a.mov(asmjit::x86::qword_ptr(stackPtr), topValue); // Push duplicated value
+        a.mov(topValue, asmjit::x86::qword_ptr(ds)); // Load top value
+        a.sub(ds, 8); // Adjust stack pointer
+        a.mov(asmjit::x86::qword_ptr(ds), topValue); // Push duplicated value
     }
 
     static void genSwap()
@@ -1982,17 +2036,17 @@ public:
         auto& a = *jc.assembler;
         a.comment(" ; ----- genSwap");
 
-        // Assuming r11 is the stack pointer
-        asmjit::x86::Gp stackPtr = asmjit::x86::r11;
+        // Assuming r15 is the stack pointer
+        asmjit::x86::Gp ds = asmjit::x86::r15;
         asmjit::x86::Gp topValue = asmjit::x86::rax;
         asmjit::x86::Gp secondValue = asmjit::x86::rcx;
 
         // Swap the top two values on the stack
         a.comment(" ; Swap top two values on the stack");
-        a.mov(topValue, asmjit::x86::qword_ptr(stackPtr)); // Load top value
-        a.mov(secondValue, asmjit::x86::qword_ptr(stackPtr, 8)); // Load second value
-        a.mov(asmjit::x86::qword_ptr(stackPtr), secondValue); // Store second value in place of top value
-        a.mov(asmjit::x86::qword_ptr(stackPtr, 8), topValue); // Store top value in place of second value
+        a.mov(topValue, asmjit::x86::qword_ptr(ds)); // Load top value
+        a.mov(secondValue, asmjit::x86::qword_ptr(ds, 8)); // Load second value
+        a.mov(asmjit::x86::qword_ptr(ds), secondValue); // Store second value in place of top value
+        a.mov(asmjit::x86::qword_ptr(ds, 8), topValue); // Store top value in place of second value
     }
 
     static void genRot()
@@ -2005,21 +2059,21 @@ public:
         auto& a = *jc.assembler;
         a.comment(" ; ----- genRot");
 
-        asmjit::x86::Gp stackPtr = asmjit::x86::r11; // stack pointer in r11
+        asmjit::x86::Gp ds = asmjit::x86::r15; // stack pointer in r15
         asmjit::x86::Gp topValue = asmjit::x86::rax; // top value in rax
         asmjit::x86::Gp secondValue = asmjit::x86::rcx; // second value in rcx
         asmjit::x86::Gp thirdValue = asmjit::x86::rdx; // third value in rdx
 
         // Rotate the top three values on the stack
         a.comment(" ; Rotate top three values on the stack");
-        a.mov(topValue, asmjit::x86::qword_ptr(stackPtr)); // Load top value (TOS)
-        a.mov(secondValue, asmjit::x86::qword_ptr(stackPtr, 8)); // Load second value (NOS)
-        a.mov(thirdValue, asmjit::x86::qword_ptr(stackPtr, 16)); // Load third value (TOS+2)
-        a.mov(asmjit::x86::qword_ptr(stackPtr), thirdValue);
+        a.mov(topValue, asmjit::x86::qword_ptr(ds)); // Load top value (TOS)
+        a.mov(secondValue, asmjit::x86::qword_ptr(ds, 8)); // Load second value (NOS)
+        a.mov(thirdValue, asmjit::x86::qword_ptr(ds, 16)); // Load third value (TOS+2)
+        a.mov(asmjit::x86::qword_ptr(ds), thirdValue);
         // Store third value in place of top value (TOS = TOS+2)
-        a.mov(asmjit::x86::qword_ptr(stackPtr, 16), secondValue);
+        a.mov(asmjit::x86::qword_ptr(ds, 16), secondValue);
         // Store second value into third position (TOS+2 = NOS)
-        a.mov(asmjit::x86::qword_ptr(stackPtr, 8), topValue); // Store top value into second position (NOS = TOS)
+        a.mov(asmjit::x86::qword_ptr(ds, 8), topValue); // Store top value into second position (NOS = TOS)
         a.comment(" ; ----- end of genRot");
     }
 
@@ -2033,15 +2087,15 @@ public:
         auto& a = *jc.assembler;
         a.comment(" ; ----- genOver");
 
-        // Assuming r11 is the stack pointer
-        asmjit::x86::Gp stackPtr = asmjit::x86::r11;
+        // Assuming r15 is the stack pointer
+        asmjit::x86::Gp ds = asmjit::x86::r15;
         asmjit::x86::Gp secondValue = asmjit::x86::rax;
 
         // Duplicate the second value on the stack
         a.comment(" ; Duplicate the second value on the stack");
-        a.mov(secondValue, asmjit::x86::qword_ptr(stackPtr, 8)); // Load second value
-        a.sub(stackPtr, 8); // Adjust stack pointer
-        a.mov(asmjit::x86::qword_ptr(stackPtr), secondValue); // Push duplicated value
+        a.mov(secondValue, asmjit::x86::qword_ptr(ds, 8)); // Load second value
+        a.sub(ds, 8); // Adjust stack pointer
+        a.mov(asmjit::x86::qword_ptr(ds), secondValue); // Push duplicated value
     }
 
 
@@ -2055,19 +2109,19 @@ public:
         auto& a = *jc.assembler;
         a.comment(" ; ----- genTuck");
 
-        // Assuming r11 is the stack pointer
-        asmjit::x86::Gp stackPtr = asmjit::x86::r11;
+        // Assuming r15 is the stack pointer
+        asmjit::x86::Gp ds = asmjit::x86::r15;
         asmjit::x86::Gp topValue = asmjit::x86::rax;
         asmjit::x86::Gp secondValue = asmjit::x86::rcx;
 
         // Tuck the top value under the second value on the stack
         a.comment(" ; Tuck the top value under the second value on the stack");
-        a.mov(topValue, asmjit::x86::qword_ptr(stackPtr)); // Load top value
-        a.mov(secondValue, asmjit::x86::qword_ptr(stackPtr, 8)); // Load second value
-        a.sub(stackPtr, 8); // Adjust stack pointer to make space
-        a.mov(asmjit::x86::qword_ptr(stackPtr), topValue); // Push top value
-        a.mov(asmjit::x86::qword_ptr(stackPtr, 8), secondValue); // Access memory at stackPtr + 8
-        a.mov(asmjit::x86::qword_ptr(stackPtr, 16), topValue); // Access memory at stackPtr + 16
+        a.mov(topValue, asmjit::x86::qword_ptr(ds)); // Load top value
+        a.mov(secondValue, asmjit::x86::qword_ptr(ds, 8)); // Load second value
+        a.sub(ds, 8); // Adjust stack pointer to make space
+        a.mov(asmjit::x86::qword_ptr(ds), topValue); // Push top value
+        a.mov(asmjit::x86::qword_ptr(ds, 8), secondValue); // Access memory at ds + 8
+        a.mov(asmjit::x86::qword_ptr(ds, 16), topValue); // Access memory at ds + 16
     }
 
 
@@ -2082,15 +2136,15 @@ public:
         auto& a = *jc.assembler;
         a.comment(" ; ----- genNip");
 
-        // Assuming r11 is the stack pointer
-        asmjit::x86::Gp stackPtr = asmjit::x86::r11;
+        // Assuming r15 is the stack pointer
+        asmjit::x86::Gp ds = asmjit::x86::r15;
         asmjit::x86::Gp topValue = asmjit::x86::rax;
 
         // NIP's operation is to remove the second item on the stack
         a.comment(" ; Remove the second item from the stack");
-        a.mov(topValue, asmjit::x86::qword_ptr(stackPtr)); // Load top value
-        a.add(stackPtr, 8); // Adjust stack pointer to skip the second item
-        a.mov(asmjit::x86::qword_ptr(stackPtr, 0), topValue); // Move top value to the new top position
+        a.mov(topValue, asmjit::x86::qword_ptr(ds)); // Load top value
+        a.add(ds, 8); // Adjust stack pointer to skip the second item
+        a.mov(asmjit::x86::qword_ptr(ds, 0), topValue); // Move top value to the new top position
     }
 
     static void genPick(int n)
@@ -2103,8 +2157,8 @@ public:
         auto& a = *jc.assembler;
         a.comment(" ; ----- genPick");
 
-        // Assuming r11 is the stack pointer
-        asmjit::x86::Gp stackPtr = asmjit::x86::r11;
+        // Assuming r15 is the stack pointer
+        asmjit::x86::Gp ds = asmjit::x86::r15;
         asmjit::x86::Gp value = asmjit::x86::rax;
 
         // Pick the nth value from the stack
@@ -2113,28 +2167,32 @@ public:
         // Calculate the address offset for the nth element
         int offset = n * 8;
 
-        a.mov(value, asmjit::x86::qword_ptr(stackPtr, offset)); // Load the nth value
-        a.sub(stackPtr, 8); // Adjust stack pointer for pushing value
-        a.mov(asmjit::x86::qword_ptr(stackPtr), value); // Push the picked value onto the stack
+        a.mov(value, asmjit::x86::qword_ptr(ds, offset)); // Load the nth value
+        a.sub(ds, 8); // Adjust stack pointer for pushing value
+        a.mov(asmjit::x86::qword_ptr(ds), value); // Push the picked value onto the stack
     }
 
 
     // Helper function to generate code for pushing constants onto the stack
+
     static void genPushConstant(uint64_t value)
     {
         auto& a = *jc.assembler;
-        asmjit::x86::Gp stackPtr = asmjit::x86::r11; // Stack pointer register
-        asmjit::x86::Gp tempValue = asmjit::x86::rax; // Temporary register for the constant
+        asmjit::x86::Gp ds = asmjit::x86::r15; // Stack pointer register
 
-        // Load constant into tempValue register
-        a.mov(tempValue, value);
-
-        // Decrement stack pointer to make space
-        a.sub(stackPtr, 8);
-
-        // Push the value onto the stack
-        a.mov(asmjit::x86::qword_ptr(stackPtr), tempValue);
+        if (value <= std::numeric_limits<uint32_t>::max()) {
+            // Push a 32-bit immediate value (optimized for smaller constants)
+            a.sub(ds, 8); // Reserve space on the stack
+            a.mov(asmjit::x86::qword_ptr(ds), static_cast<uint32_t>(value));
+        } else {
+            // For larger constants, we need to handle it in two steps (potentially)
+            asmjit::x86::Mem stackMem(ds, -8); // Memory location for pushing the constant
+            a.sub(ds, 8); // Reserve space on the stack
+            a.mov(stackMem, value); // Move the 64-bit value directly to the reserved space
+        }
     }
+
+
 
     // Macros or inline functions to call the helper function with specific values
 #define GEN_PUSH_CONSTANT_FN(name, value) \
@@ -2166,11 +2224,11 @@ public:
         auto& a = *jc.assembler;
         a.comment(" ; ----- gen1inc - use inc instruction");
 
-        // Assuming r11 is the stack pointer
-        asmjit::x86::Gp stackPtr = asmjit::x86::r11;
+        // Assuming r15 is the stack pointer
+        asmjit::x86::Gp ds = asmjit::x86::r15;
 
-        // Increment the value at the memory location pointed to by r11
-        a.inc(asmjit::x86::qword_ptr(stackPtr));
+        // Increment the value at the memory location pointed to by r15
+        a.inc(asmjit::x86::qword_ptr(ds));
     }
 
 
@@ -2184,11 +2242,11 @@ public:
         auto& a = *jc.assembler;
         a.comment(" ; ----- gen1inc - use dec instruction");
 
-        // Assuming r11 is the stack pointer
-        asmjit::x86::Gp stackPtr = asmjit::x86::r11;
+        // Assuming r15 is the stack pointer
+        asmjit::x86::Gp ds = asmjit::x86::r15;
 
-        // Decrement the value at the memory location pointed to by r11
-        a.dec(asmjit::x86::qword_ptr(stackPtr));
+        // Decrement the value at the memory location pointed to by r15
+        a.dec(asmjit::x86::qword_ptr(ds));
     }
 
 
@@ -2210,13 +2268,13 @@ public:
     static void genMulBy10()
     {
         auto& a = *jc.assembler;
-        asmjit::x86::Gp stackPtr = asmjit::x86::r11; // Stack pointer register
+        asmjit::x86::Gp ds = asmjit::x86::r15; // Stack pointer register
         asmjit::x86::Gp tempValue = asmjit::x86::rax; // Temporary register for value
         asmjit::x86::Gp tempResult = asmjit::x86::rdx; // Temporary register for intermediate result
 
         a.comment("; multiply by ten");
         // Load the top stack value into tempValue
-        a.mov(tempValue, asmjit::x86::qword_ptr(stackPtr));
+        a.mov(tempValue, asmjit::x86::qword_ptr(ds));
 
         // Perform the shift left by 3 (Value * 8)
         a.mov(tempResult, tempValue);
@@ -2229,7 +2287,7 @@ public:
         a.add(tempResult, tempValue);
 
         // Store the result back on the stack
-        a.mov(asmjit::x86::qword_ptr(stackPtr), tempResult);
+        a.mov(asmjit::x86::qword_ptr(ds), tempResult);
     }
 
 
@@ -2237,34 +2295,34 @@ public:
     static void genLeftShift(int shiftAmount)
     {
         auto& a = *jc.assembler;
-        asmjit::x86::Gp stackPtr = asmjit::x86::r11; // Stack pointer register
+        asmjit::x86::Gp ds = asmjit::x86::r15; // Stack pointer register
         asmjit::x86::Gp tempValue = asmjit::x86::rax; // Temporary register for value
 
         // Load the top stack value into tempValue
-        a.mov(tempValue, asmjit::x86::qword_ptr(stackPtr));
+        a.mov(tempValue, asmjit::x86::qword_ptr(ds));
 
         // Perform the shift
         a.shl(tempValue, shiftAmount);
 
         // Store the result back on the stack
-        a.mov(asmjit::x86::qword_ptr(stackPtr), tempValue);
+        a.mov(asmjit::x86::qword_ptr(ds), tempValue);
     }
 
     // Helper function for right shifts
     static void genRightShift(int shiftAmount)
     {
         auto& a = *jc.assembler;
-        asmjit::x86::Gp stackPtr = asmjit::x86::r11; // Stack pointer register
+        asmjit::x86::Gp ds = asmjit::x86::r15; // Stack pointer register
         asmjit::x86::Gp tempValue = asmjit::x86::rax; // Temporary register for value
 
         // Load the top stack value into tempValue
-        a.mov(tempValue, asmjit::x86::qword_ptr(stackPtr));
+        a.mov(tempValue, asmjit::x86::qword_ptr(ds));
 
         // Perform the shift
         a.shr(tempValue, shiftAmount);
 
         // Store the result back on the stack
-        a.mov(asmjit::x86::qword_ptr(stackPtr), tempValue);
+        a.mov(asmjit::x86::qword_ptr(ds), tempValue);
     }
 
     // Macros to define the shift operations

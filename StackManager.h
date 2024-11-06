@@ -10,133 +10,292 @@
 // Forward declaration
 class jitGenerator;
 
-class StackManager {
+class StackManager
+{
 public:
-    // Static method to get the singleton instance
-    static StackManager& getInstance() {
+    static StackManager& getInstance()
+    {
         static StackManager instance;
         return instance;
     }
 
-    // Delete copy constructor and assignment operator to prevent copies
     StackManager(const StackManager&) = delete;
     StackManager& operator=(const StackManager&) = delete;
 
-    // C related functions
-    void pushDS(uint64_t value) {
-        if (dsPtr == dsStack) {
+    // Data Stack Operations
+    void pushDS(uint64_t value)
+    {
+        if (dsPtr == dsStack)
+        {
             printf("DS stack overflow\n");
             throw std::runtime_error("DS stack overflow");
         }
+
+        asm volatile (
+            "mov %%r15, %0;"
+            : "=r"(dsPtr) // output
+        );
+
         dsPtr--;
-        *(dsPtr) = value;
+        *dsPtr = value;
+
+        asm volatile (
+            "mov %0, %%r15;"
+            :
+            : "r"(dsPtr) // input
+        );
     }
 
-    // reset DS to original state
-    void resetDS() {
+    void resetDS()
+    {
         dsPtr = dsTop;
-        std::fill(dsStack, dsStack + 1024*1024*2, 0);
+        asm volatile (
+            "mov %0, %%r15;"
+            :
+            : "r"(dsPtr) // input
+        );
+        std::fill(dsStack, dsStack + 1024 * 1024 * 2, 0);
     }
 
-    uint64_t popDS() {
+    uint64_t popDS()
+    {
+        asm volatile (
+            "mov %%r15, %0;"
+            : "=r"(dsPtr) // output
+        );
+
         int dsDepth = dsTop - dsPtr;
-        if (dsDepth<0) {
+        if (dsDepth < 0)
+        {
             printf("DS stack underflow\n");
             throw std::runtime_error("DS stack underflow");
         }
-        auto val = *(dsPtr);
+        auto val = *dsPtr;
         dsPtr++;
+
+        asm volatile (
+            "mov %0, %%r15;"
+            :
+            : "r"(dsPtr) // input
+        );
+
         return val;
     }
 
-    void pushRS(uint64_t value) {
-        if (rsPtr == rsStack) {
+    // Return Stack Operations
+    void pushRS(uint64_t value)
+    {
+        if (rsPtr == rsStack)
+        {
             printf("RS stack overflow\n");
             throw std::runtime_error("RS stack overflow");
         }
-        *(--rsPtr) = value;
+
+        asm volatile (
+            "mov %%r14, %0;"
+            : "=r"(rsPtr) // output
+        );
+
+        rsPtr--;
+        *rsPtr = value;
+
+        asm volatile (
+            "mov %0, %%r14;"
+            :
+            : "r"(rsPtr) // input
+        );
     }
 
-    uint64_t popRS() {
-        if (rsPtr == rsStack + 1024*1024*1) {
+    void resetRS()
+    {
+        rsPtr = rsTop;
+        asm volatile (
+            "mov %0, %%r14;"
+            :
+            : "r"(rsPtr) // input
+        );
+        std::fill(rsStack, rsStack + 1024 * 1024 * 1, 0);
+    }
+
+    uint64_t popRS()
+    {
+        asm volatile (
+            "mov %%r14, %0;"
+            : "=r"(rsPtr) // output
+        );
+
+        int rsDepth = rsTop - rsPtr;
+        if (rsDepth < 0)
+        {
             printf("RS stack underflow\n");
             throw std::runtime_error("RS stack underflow");
         }
-        return *(rsPtr++);
+        auto val = *rsPtr;
+        rsPtr++;
+
+        asm volatile (
+            "mov %0, %%r14;"
+            :
+            : "r"(rsPtr) // input
+        );
+
+        return val;
     }
 
-    [[nodiscard]] uint64_t getDStop() const {
+    // Local Stack Operations
+    void pushLS(uint64_t value)
+    {
+        if (lsPtr == lsStack)
+        {
+            printf("LS stack overflow\n");
+            throw std::runtime_error("LS stack overflow");
+        }
+
+        asm volatile (
+            "mov %%r13, %0;"
+            : "=r"(lsPtr) // output
+        );
+
+        lsPtr--;
+        *lsPtr = value;
+
+        asm volatile (
+            "mov %0, %%r13;"
+            :
+            : "r"(lsPtr) // input
+        );
+    }
+
+    void resetLS()
+    {
+        lsPtr = lsTop;
+        asm volatile (
+            "mov %0, %%r13;"
+            :
+            : "r"(lsPtr) // input
+        );
+        std::fill(lsStack, lsStack + 1024 * 1024, 0);
+    }
+
+    uint64_t popLS()
+    {
+        asm volatile (
+            "mov %%r13, %0;"
+            : "=r"(lsPtr) // output
+        );
+
+        int lsDepth = lsTop - lsPtr;
+        if (lsDepth < 0)
+        {
+            printf("LS stack underflow\n");
+            throw std::runtime_error("LS stack underflow");
+        }
+        auto val = *lsPtr;
+        lsPtr++;
+
+        asm volatile (
+            "mov %0, %%r13;"
+            :
+            : "r"(lsPtr) // input
+        );
+
+        return val;
+    }
+
+    [[nodiscard]] uint64_t getDStop() const
+    {
         return reinterpret_cast<uint64_t>(dsTop);
     }
 
-    [[nodiscard]] uint64_t getDSPtr() const {
+    [[nodiscard]] uint64_t getDSPtr() const
+    {
         return reinterpret_cast<uint64_t>(dsPtr);
     }
 
-    [[nodiscard]] uint64_t getDSDepth() const {
-        const uint64_t dsDepth = dsTop - dsPtr;
-        return dsDepth;
+    [[nodiscard]] uint64_t getDSDepth() const
+    {
+        return dsTop - dsPtr;
     }
 
+    [[nodiscard]] uint64_t getRStop() const
+    {
+        return reinterpret_cast<uint64_t>(rsTop);
+    }
 
-    void display_stack() const {
-        printf("\nData Stack: ");
-        int dsDepth = dsTop - dsPtr;
-        std::cout << "dsPtr = " << dsPtr << std::endl;
-        std::cout << "dsTop = " << dsTop << std::endl;
-        // Display items from dsPtr (top of stack) down 16 levels
-        for (int i = 0; i < std::min(dsDepth, 16); i++) {
-            std::cout << "[" << i << "] = (" << *(dsPtr + i) << ")  ";
-        }
-        // Display depth of stack
-        std::cout << "Data Stack depth: " << dsDepth << std::endl;
+    [[nodiscard]] uint64_t getRSPtr() const
+    {
+        return reinterpret_cast<uint64_t>(rsPtr);
+    }
 
-        printf("\nReturn Stack: ");
-        int rsDepth = rsTop - rsPtr;
-        // Display items from rsPtr (top of stack) down 16 levels
-        for (int i = 0; i < std::min(rsDepth, 16); i++) {
-            std::cout << "rsPtr[" << i << "] = " << *(rsPtr + i);
-        }
-        // Display depth of stack
-        std::cout << "Return Stack depth: " << rsDepth << std::endl;
+    [[nodiscard]] uint64_t getRSDepth() const
+    {
+        return rsTop - rsPtr;
+    }
+
+    [[nodiscard]] uint64_t getLStop() const
+    {
+        return reinterpret_cast<uint64_t>(lsTop);
+    }
+
+    [[nodiscard]] uint64_t getLSPtr() const
+    {
+        return reinterpret_cast<uint64_t>(lsPtr);
+    }
+
+    [[nodiscard]] uint64_t getLSDepth() const
+    {
+        return lsTop - lsPtr;
     }
 
 private:
-    // Private constructor to prevent instantiation
-    StackManager() {
-        // Initialize fixed-size arrays for stacks
-
+    StackManager()
+    {
         std::fill(dsUnderCanary, dsUnderCanary + 1024, 9999999);
-        std::fill(dsStack, dsStack + 1024*1024*2, 0);
+        std::fill(dsStack, dsStack + 1024 * 1024 * 2, 0);
         std::fill(dsOverCanary, dsOverCanary + 1024, 8888888);
         std::fill(rsUnderCanary, rsUnderCanary + 1024, 7777777);
-        std::fill(rsStack, rsStack + 1024*1024*1, 0);
+        std::fill(rsStack, rsStack + 1024 * 1024 * 1, 0);
         std::fill(rsOverCanary, rsOverCanary + 1024, 66666666);
         std::fill(lsUnderCanary, lsUnderCanary + 1024, 55555555);
-        std::fill(lsStack, lsStack + 1024*1024, 0);
+        std::fill(lsStack, lsStack + 1024 * 1024, 0);
         std::fill(lsOverCanary, lsOverCanary + 1024, 44444444);
 
-        dsTop = dsStack + 1024*1024*2 - 4;
-        dsPtr = dsStack + 1024*1024*2  - 4;
-        rsTop = rsStack + 1024*1024*1  - 4;
-        rsPtr = rsStack + 1024*1024*1  - 4;
-        lsTop = lsStack + 1024*1024*1  - 64;
-        lsPtr = lsStack + 1024*1024*1  - 4;
-    }
-    ~StackManager() {
-        // No need to free memory since we're using fixed-size arrays
+        dsTop = dsStack + 1024 * 1024 * 2 - 4;
+        dsPtr = dsStack + 1024 * 1024 * 2 - 4;
+        rsTop = rsStack + 1024 * 1024 * 1 - 4;
+        rsPtr = rsStack + 1024 * 1024 * 1 - 4;
+        lsTop = lsStack + 1024 * 1024 * 1 - 64;
+        lsPtr = lsStack + 1024 * 1024 * 1 - 4;
+
+        asm volatile (
+            "mov %0, %%r15;"
+            :
+            : "r"(dsPtr) // input
+        );
+
+        asm volatile (
+            "mov %0, %%r14;"
+            :
+            : "r"(rsPtr) // input
+        );
+
+        asm volatile (
+            "mov %0, %%r13;"
+            :
+            : "r"(lsPtr) // input
+        );
     }
 
+    ~StackManager() = default;
 
-    // Fixed-size arrays for stacks
     uint64_t dsUnderCanary[1024];
-    uint64_t dsStack[1024*1024*2];
+    uint64_t dsStack[1024 * 1024 * 2];
     uint64_t dsOverCanary[1024];
     uint64_t rsUnderCanary[1024];
-    uint64_t rsStack[1024*1024*1];
+    uint64_t rsStack[1024 * 1024 * 1];
     uint64_t rsOverCanary[1024];
     uint64_t lsUnderCanary[1024];
-    uint64_t lsStack[1024*1024];
+    uint64_t lsStack[1024 * 1024];
     uint64_t lsOverCanary[1024];
 
 public:
@@ -146,11 +305,6 @@ public:
     uint64_t* rsPtr;
     uint64_t* lsTop;
     uint64_t* lsPtr;
-
-    // Friend class declaration
-    friend class jitGenerator;
 };
-
-
 
 #endif // STACKMANAGER_H

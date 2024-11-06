@@ -2,7 +2,9 @@
 
 ## x64 Calling Conventions
 
-The x64 calling convention for Windows (Microsoft x64 calling convention) is distinct from the System V AMD64 ABI used in Unix-like systems. Here's an overview:
+The x64 calling convention for Windows (Microsoft x64 calling convention) 
+is distinct from the System V AMD64 ABI used in Unix-like systems. 
+Here's an overview:
 
 ### Argument Passing
 
@@ -94,11 +96,14 @@ jitBrainsForth uses the x64 calling convention for Windows, ensuring that functi
 However jBF does use some registers for its own purposes
 
 These are the data stack DS, the return/temporary stack RS, the dictionary pointer H, and the locals stack LS.
-These values persist across function calls and are used to manage the state of the interpreter and track the current execution context.
+These values persist across function calls and are used to manage the state of the interpreter 
+and track the current execution context.
 
-The register allocated to DS is R11.
-The register allocated to RS is R10.
-The register allocated to LS is R9.
+The register allocated to DS is R15.
+The register allocated to RS is R14.
+The register allocated to LS is R13.
+
+These are used from C and FORTH code to access the stacks.
 
 Three scratch registers are used to perform stack operations 
 

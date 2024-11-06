@@ -33,7 +33,7 @@ public:
         code.init(rt.environment());
 
         // Recreate the assembler with the new code holder
-        delete assembler;
+        //delete assembler;
         assembler = new asmjit::x86::Assembler(&code);
         if (logging)
         {
@@ -60,6 +60,7 @@ public:
     {
         logging = false;
         code.setLogger(nullptr); // Disable logging
+
     }
 
 private:
@@ -67,6 +68,7 @@ private:
 JitContext() :
     rt(),
     assembler(nullptr),
+
     logger(stdout),
     uint64_A(0),
     uint64_B(0),
@@ -92,6 +94,7 @@ JitContext() :
 
 {
         // Initialization code
+        code.reset();
         code.init(rt.environment());
         assembler = new asmjit::x86::Assembler(&code);
         if (logging)
@@ -112,6 +115,7 @@ public:
     asmjit::JitRuntime rt;
     asmjit::CodeHolder code;
     asmjit::x86::Assembler* assembler;
+    asmjit::Label epilogueLabel;
 
     // Used to pass arguments to the code generators
     uint64_t uint64_A;

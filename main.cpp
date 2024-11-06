@@ -59,7 +59,7 @@ void test_if_else_then()
 
 void add_words()
 {
-    d.addWord("1", JitGenerator::push1, JitGenerator::build_forth(JitGenerator::push1), nullptr);
+    // d.addWord("1", JitGenerator::push1, JitGenerator::build_forth(JitGenerator::push1), nullptr);
     d.addWord("2", JitGenerator::push2, JitGenerator::build_forth(JitGenerator::push2), nullptr);
     d.addWord("3", JitGenerator::push3, JitGenerator::build_forth(JitGenerator::push3), nullptr);
     d.addWord("4", JitGenerator::push4, JitGenerator::build_forth(JitGenerator::push4), nullptr);
@@ -111,7 +111,7 @@ void add_words()
     d.addWord("SP@", JitGenerator::genDSAT, JitGenerator::build_forth(JitGenerator::genDSAT), nullptr);
 
     // add depth
-    d.addWord("DEPTH", JitGenerator::genDepth, JitGenerator::build_forth(JitGenerator::genDepth), nullptr);
+    //d.addWord("DEPTH", JitGenerator::genDepth, JitGenerator::build_forth(JitGenerator::genDepth), nullptr);
     // add nip and tuck words
     d.addWord("NIP", JitGenerator::genNip, JitGenerator::build_forth(JitGenerator::genNip), nullptr);
     d.addWord("TUCK", JitGenerator::genTuck, JitGenerator::build_forth(JitGenerator::genTuck), nullptr);
@@ -145,9 +145,14 @@ void add_words()
     d.addWord("{", nullptr, nullptr, JitGenerator::gen_leftBrace);
     d.addWord("to", nullptr, nullptr, JitGenerator::genTO);
 
+    d.addWord(".", JitGenerator::genDot, JitGenerator::build_forth(JitGenerator::genDot), nullptr);
+    d.addWord("emit", JitGenerator::genEmit, JitGenerator::build_forth(JitGenerator::genEmit), nullptr);
+    d.addWord(".s", nullptr, JitGenerator::dotS,nullptr);
 
+    compileWord("space", "13 emit 10 emit");
+    compileWord("cr", "13 emit 10 emit");
+    compileWord("sq", "dup * ");
 
-    compileWord("SQ", "DUP *");
 }
 
 void run_word(const std::string& word)
@@ -158,7 +163,7 @@ void run_word(const std::string& word)
         if (is_number(word))
         {
             uint64_t num = std::stoll(word);
-            printf("Pushing number: %llu\n", num);
+            //printf("Pushing number: %llu\n", num);
             sm.pushDS(num);
         }
         else
@@ -212,6 +217,25 @@ void testCompileAndRun(const std::string& wordName,
     compileWord(wordName, wordDefinition);
     test_against_ds(testString, expectedResult);
     d.forgetLastWord();
+}
+
+
+void testInterpreter(const std::string& test_name, const std::string& testString,
+                     const int expectedResult)
+{
+    interpreter(testString); // Interpret the test string input
+    uint64_t result = sm.popDS();
+    d.forgetLastWord();
+    if (result != expectedResult)
+    {
+        std::cout << "!! ---- Failed test: "
+            << test_name << " Expected: "
+            << expectedResult
+            << " but got: " << result <<
+            std::endl;
+    }
+    else
+        std::cout << "Passed test: " << test_name << " = " << expectedResult << std::endl;
 }
 
 
@@ -351,7 +375,7 @@ void run_basic_tests()
 
     // test loop containing if then
     testCompileAndRun("testBeginUntilNestedIF",
-                      " 0 BEGIN 1+ DUP 5 > IF 65 CR THEN DUP 10 = UNTIL ",
+                      " 0 BEGIN 1+ DUP 5 > IF 65 emit THEN DUP 10 = UNTIL ",
                       " 8 testBeginUntilNestedIF ",
                       8);
 
@@ -382,9 +406,9 @@ void run_basic_tests()
 
 
     testCompileAndRun("testDoPlusLoop",
-                        " DO I 2 +LOOP ",
-                        " 10 1 testDoPlusLoop ",
-                        9);
+                      " DO I 2 +LOOP ",
+                      " 10 1 testDoPlusLoop ",
+                      9);
 
 
     testCompileAndRun("testThreeLevelDeepLoop",
@@ -394,37 +418,43 @@ void run_basic_tests()
 
 
     testCompileAndRun("testLocals",
-                       " { a b } a b + ",
-                       " 10 1 testLocals ",
-                       11);
+                      " { a b } a b + ",
+                      " 10 1 testLocals ",
+                      11);
 
     testCompileAndRun("testLocals2",
-                       " { a b | c } a b + to c c "
-                       "",
-                       " 10 6 testLocals2 ",
-                       16);
+                      " { a b | c } a b + to c c ",
+
+                      " 10 6 testLocals2 ",
+                      16);
+
+    testCompileAndRun("testLocals3",
+                      " { a b | c -- d } a b + to c c 2* to d ",
+
+                      " 9 10 6 testLocals3 ",
+                      32);
+
 }
 
 int main()
 {
+
+
+    jc.loggingOFF();
+    add_words();
+    run_basic_tests();
+
+
     try
     {
-        std::cout << "hello" << std::endl;
-        jc.loggingOFF();
-        sm.pushDS(10);
-        add_words();
-
-        traceon("testLocals2");
-        run_basic_tests();
 
 
-        // sm.display_stack();
+        Quit();
     }
     catch (const std::runtime_error& e)
     {
         std::cerr << "Runtime error: " << e.what() << std::endl;
 
-        sm.display_stack();
     }
     return 0;
 }

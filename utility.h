@@ -12,36 +12,36 @@
 extern "C" {
 inline void printDecimal(int64_t number)
 {
-    std::cout << std::to_string(number) << std::endl;
+    std::cout << std::to_string(number);
 }
 
 inline void printUnsignedDecimal(uint64_t number)
 {
-    std::cout << std::to_string(number) << std::endl;
+    std::cout << std::to_string(number);
 }
 
 inline void printUnsignedHex(uint64_t number)
 {
     std::ostringstream oss;
-    oss << "0x" << std::hex << number;
+    oss << "0x" << std::hex;
     std::cout << oss.str() << std::endl;
 }
 
 inline void printHex(int64_t number)
 {
     std::ostringstream oss;
-    oss << "0x" << std::hex << number;
+    oss << "0x" << std::hex;
     std::cout << oss.str() << std::endl;
 }
 
 inline void printBinary(int64_t number)
 {
-    std::cout << "0b" << std::bitset<64>(number) << std::endl;
+    std::cout << "0b" << std::bitset<64>(number);
 }
 
 inline void printUnsignedBinary(uint64_t number)
 {
-    std::cout << "0b" << std::bitset<64>(number) << std::endl;
+    std::cout << "0b" << std::bitset<64>(number);
 }
 }
 
