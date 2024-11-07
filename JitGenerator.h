@@ -194,8 +194,8 @@ public:
         a.je(skipLoad);*/
 
         // Load datastack to r15
-       // a.comment("; load datastack to r15");
-       // a.mov(asmjit::x86::rax, reinterpret_cast<uint64_t>(&sm.dsPtr));
+        // a.comment("; load datastack to r15");
+        // a.mov(asmjit::x86::rax, reinterpret_cast<uint64_t>(&sm.dsPtr));
         //a.mov(asmjit::x86::r15, asmjit::x86::qword_ptr(asmjit::x86::rax));
 
         // Load return stack to r14
@@ -231,17 +231,17 @@ public:
         asmjit::Label skipLoad = a.newLabel();
         a.je(skipLoad);*/
 
-       //  a.comment(" ; ----- exitFunction");
-       //  a.nop();
-       //  a.comment("; save datastack from r15");
-       // // a.mov(asmjit::x86::rax, reinterpret_cast<uint64_t>(&sm.dsPtr));
-       // // a.mov(asmjit::x86::qword_ptr(asmjit::x86::rax), asmjit::x86::r15);
-       //  a.comment("; save return stack from r14");
-       //  a.mov(asmjit::x86::rax, reinterpret_cast<uint64_t>(&sm.rsPtr));
-       //  a.mov(asmjit::x86::qword_ptr(asmjit::x86::rax), asmjit::x86::r14);
-       //  a.comment("; save local stack from r13");
-       //  a.mov(asmjit::x86::rax, reinterpret_cast<uint64_t>(&sm.lsPtr));
-       //  a.mov(asmjit::x86::qword_ptr(asmjit::x86::rax), asmjit::x86::r13);
+        //  a.comment(" ; ----- exitFunction");
+        //  a.nop();
+        //  a.comment("; save datastack from r15");
+        // // a.mov(asmjit::x86::rax, reinterpret_cast<uint64_t>(&sm.dsPtr));
+        // // a.mov(asmjit::x86::qword_ptr(asmjit::x86::rax), asmjit::x86::r15);
+        //  a.comment("; save return stack from r14");
+        //  a.mov(asmjit::x86::rax, reinterpret_cast<uint64_t>(&sm.rsPtr));
+        //  a.mov(asmjit::x86::qword_ptr(asmjit::x86::rax), asmjit::x86::r14);
+        //  a.comment("; save local stack from r13");
+        //  a.mov(asmjit::x86::rax, reinterpret_cast<uint64_t>(&sm.lsPtr));
+        //  a.mov(asmjit::x86::qword_ptr(asmjit::x86::rax), asmjit::x86::r13);
         // Label to skip to if R15 is 0xA1B2C3D4
         //a.bind(skipLoad);
     }
@@ -755,7 +755,7 @@ public:
             // Restore the return stack pointer by adding the total local count.
         }
 
-         exitFunction();
+        exitFunction();
         // Free the total stack space on the return stack pointer.
         a.ret();
     }
@@ -828,7 +828,7 @@ public:
         a.comment(" ; ----- gen_emit");
         popDS(asmjit::x86::rcx);
         preserveStackPointers();
-        // Allocate space for the shadow space (32 bytes).
+        // Allocate space for the shadow space
         a.sub(asmjit::x86::rsp, 40);
         a.call(asmjit::imm(reinterpret_cast<void*>(prim_emit)));
         a.add(asmjit::x86::rsp, 40);
@@ -837,7 +837,7 @@ public:
 
     static void dotS()
     {
-
+        sm.displayStacks();
     }
 
     static void prim_forget()
@@ -1015,17 +1015,14 @@ public:
         }
         auto& a = *jc.assembler;
         exitFunction();
-        
+
         a.comment(" ; ----- gen_call");
         a.mov(asmjit::x86::rax, fn);
         a.call(asmjit::x86::rax);
- 
     }
 
 
-
     // Executable function pointer
-
 
 
     /*
@@ -1065,6 +1062,165 @@ public:
         exec = new_func;
     }
     */
+
+
+    // return stack words..
+
+    static void genToR()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("gen_toR: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- gen_toR");
+
+        asmjit::x86::Gp value = asmjit::x86::r8; // Temporary register for value
+
+        // Pop value from DS (represented by r15)
+        a.comment(" ; Pop value from DS");
+        a.mov(value, asmjit::x86::ptr(asmjit::x86::r15));
+        a.add(asmjit::x86::r15, sizeof(uint64_t));
+
+        // Push value to RS (represented by r14)
+        a.comment(" ; Push value to RS");
+        a.sub(asmjit::x86::r14, sizeof(uint64_t));
+        a.mov(asmjit::x86::ptr(asmjit::x86::r14), value);
+    }
+
+    static void genRFrom()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("gen_rFrom: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- gen_rFrom");
+
+        asmjit::x86::Gp value = asmjit::x86::r8; // Temporary register for value
+
+        // Pop value from RS (represented by r14)
+        a.comment(" ; Pop value from RS");
+        a.mov(value, asmjit::x86::ptr(asmjit::x86::r14));
+        a.add(asmjit::x86::r14, sizeof(uint64_t));
+
+        // Push value to DS (represented by r15)
+        a.comment(" ; Push value to DS");
+        a.sub(asmjit::x86::r15, sizeof(uint64_t));
+        a.mov(asmjit::x86::ptr(asmjit::x86::r15), value);
+    }
+
+
+    static void genRFetch()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("gen_rFetch: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- gen_rFetch");
+
+        asmjit::x86::Gp value = asmjit::x86::r8; // Temporary register for value
+
+        // Fetch (not pop) value from RS (represented by r14)
+        a.comment(" ; Fetch value from RS");
+        a.mov(value, asmjit::x86::ptr(asmjit::x86::r14));
+
+        // Push fetched value to DS (represented by r15)
+        a.comment(" ; Push fetched value to DS");
+        a.sub(asmjit::x86::r15, sizeof(uint64_t));
+        a.mov(asmjit::x86::ptr(asmjit::x86::r15), value);
+    }
+
+
+    static void genRPFetch()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("gen_rpFetch: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- gen_rpFetch");
+
+        asmjit::x86::Gp rsPointer = asmjit::x86::r8; // Temporary register for RS pointer
+
+        // Get RS pointer (which is in r14) and push it to DS (r15)
+        a.comment(" ; Fetch RS pointer and push to DS");
+        a.mov(rsPointer, asmjit::x86::r14);
+        a.sub(asmjit::x86::r15, sizeof(uint64_t));
+        a.mov(asmjit::x86::ptr(asmjit::x86::r15), rsPointer);
+    }
+
+
+    static void genSPFetch()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("gen_spFetch: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- gen_spFetch");
+
+        asmjit::x86::Gp dsPointer = asmjit::x86::r8; // Temporary register for DS pointer
+
+        // Get DS pointer (which is in r15) and push it to the DS itself
+        a.comment(" ; Fetch DS pointer and push to DS");
+        a.mov(dsPointer, asmjit::x86::r15);
+        a.sub(asmjit::x86::r15, sizeof(uint64_t));
+        a.mov(asmjit::x86::ptr(asmjit::x86::r15), dsPointer);
+    }
+
+
+    static void genSPStore()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("gen_spStore: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- gen_spStore");
+
+        asmjit::x86::Gp newDsPointer = asmjit::x86::r8; // Temporary register for new DS pointer
+
+        // Pop new data stack pointer value from the data stack itself
+        a.comment(" ; Pop new DS pointer from DS");
+        a.mov(newDsPointer, asmjit::x86::ptr(asmjit::x86::r15));
+        a.add(asmjit::x86::r15, sizeof(uint64_t));
+
+        // Set DS pointer (r15) to the new data stack pointer value
+        a.comment(" ; Store new DS pointer to r15");
+        a.mov(asmjit::x86::r15, newDsPointer);
+    }
+
+
+    static void genRPStore()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("gen_rpStore: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- gen_rpStore");
+
+        asmjit::x86::Gp newRsPointer = asmjit::x86::r8; // Temporary register for new RS pointer
+
+        // Pop new return stack pointer value from the data stack
+        a.comment(" ; Pop new RS pointer from DS");
+        a.mov(newRsPointer, asmjit::x86::ptr(asmjit::x86::r15));
+        a.add(asmjit::x86::r15, sizeof(uint64_t));
+
+        // Set RS pointer (r14) to the new return stack pointer value
+        a.comment(" ; Store new RS pointer to r14");
+        a.mov(asmjit::x86::r14, newRsPointer);
+    }
+
 
     static void genDo()
     {
@@ -2175,24 +2331,25 @@ public:
 
     // Helper function to generate code for pushing constants onto the stack
 
-    static void genPushConstant(uint64_t value)
+static void genPushConstant(int64_t value)
+{
+    auto& a = *jc.assembler;
+    asmjit::x86::Gp ds = asmjit::x86::r15; // Stack pointer register
+
+    if (value >= std::numeric_limits<int32_t>::min() && value <= std::numeric_limits<int32_t>::max())
     {
-        auto& a = *jc.assembler;
-        asmjit::x86::Gp ds = asmjit::x86::r15; // Stack pointer register
-
-        if (value <= std::numeric_limits<uint32_t>::max()) {
-            // Push a 32-bit immediate value (optimized for smaller constants)
-            a.sub(ds, 8); // Reserve space on the stack
-            a.mov(asmjit::x86::qword_ptr(ds), static_cast<uint32_t>(value));
-        } else {
-            // For larger constants, we need to handle it in two steps (potentially)
-            asmjit::x86::Mem stackMem(ds, -8); // Memory location for pushing the constant
-            a.sub(ds, 8); // Reserve space on the stack
-            a.mov(stackMem, value); // Move the 64-bit value directly to the reserved space
-        }
+        // Push a 32-bit immediate value (optimized for smaller constants)
+        a.sub(ds, 8); // Reserve space on the stack
+        a.mov(asmjit::x86::qword_ptr(ds), static_cast<int32_t>(value));
     }
-
-
+    else
+    {
+        // For larger/negative 64-bit constants
+        asmjit::x86::Mem stackMem(ds, -8); // Memory location for pushing the constant
+        a.sub(ds, 8); // Reserve space on the stack
+        a.mov(stackMem, value); // Move the 64-bit value directly to the reserved space
+    }
+}
 
     // Macros or inline functions to call the helper function with specific values
 #define GEN_PUSH_CONSTANT_FN(name, value) \

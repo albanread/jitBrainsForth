@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <stdexcept>
 #include <iostream>
+#include <array>
 #include <algorithm>
 
 // Forward declaration
@@ -214,7 +215,16 @@ public:
 
     [[nodiscard]] uint64_t getDSDepth() const
     {
-        return dsTop - dsPtr;
+        uint64_t currentDsPtr;
+
+        // Get the current value of dsPtr from r15 register
+        asm volatile (
+            "mov %%r15, %0;"
+            : "=r"(currentDsPtr) // output
+        );
+
+        uint64_t dsDepth = (reinterpret_cast<uint64_t>(dsTop) - reinterpret_cast<uint64_t>(currentDsPtr))/8;
+        return dsDepth-1;
     }
 
     [[nodiscard]] uint64_t getRStop() const
@@ -222,14 +232,32 @@ public:
         return reinterpret_cast<uint64_t>(rsTop);
     }
 
-    [[nodiscard]] uint64_t getRSPtr() const
+    [[nodiscard]] static uint64_t getRSPtr()
     {
-        return reinterpret_cast<uint64_t>(rsPtr);
+        uint64_t currentRsPtr;
+
+        // Get the current value of dsPtr from r15 register
+        asm volatile (
+            "mov %%r154, %0;"
+            : "=r"(currentRsPtr) // output
+        );
+
+
+        return currentRsPtr;
     }
 
     [[nodiscard]] uint64_t getRSDepth() const
     {
-        return rsTop - rsPtr;
+        uint64_t currentRsPtr;
+
+        // Get the current value of dsPtr from r15 register
+        asm volatile (
+            "mov %%r14, %0;"
+            : "=r"(currentRsPtr) // output
+        );
+
+        uint64_t rsDepth = (reinterpret_cast<uint64_t>(rsTop) - reinterpret_cast<uint64_t>(currentRsPtr))/8;
+        return rsDepth;
     }
 
     [[nodiscard]] uint64_t getLStop() const
@@ -245,6 +273,42 @@ public:
     [[nodiscard]] uint64_t getLSDepth() const
     {
         return lsTop - lsPtr;
+    }
+
+    void displayStacks() const
+    {
+        uint64_t* currentDsPtr;
+        uint64_t* currentRsPtr;
+
+        // Get the current values of dsPtr and rsPtr from the registers
+        asm volatile (
+            "mov %%r15, %0;"
+            : "=r"(currentDsPtr) // output
+        );
+
+        asm volatile (
+            "mov %%r14, %0;"
+            : "=r"(currentRsPtr) // output
+        );
+
+        auto getStackValues = [](const uint64_t* top, const uint64_t* ptr) -> std::array<uint64_t, 4> {
+            std::array<uint64_t, 4> values = {0, 0, 0, 0};
+            int depth = top - ptr;
+            for (int i = 0; i < 4 && i < depth; ++i)
+            {
+                values[i] = *(ptr + i);
+            }
+            return values;
+        };
+
+        auto dsValues = getStackValues(dsTop, currentDsPtr);
+        auto rsValues = getStackValues(rsTop, currentRsPtr);
+
+        std::cout << "\tDS \t RS \tDS (1)\tDS (2)\tDS (3)\tDS (4)\tRS (1)\tRS (2)\tRS (3)\tRS (4)\n";
+        std::cout << "\t" << getDSDepth() << "\t" << getRSDepth() << "\t" << dsValues[0] << "\t" << dsValues[1] << "\t"
+                  << dsValues[2] << "\t" << dsValues[3] << "\t"
+        << rsValues[0] << "\t" << rsValues[1] << "\t"
+                  << rsValues[2] << "\t" << rsValues[3] << "\n" << std::endl;;
     }
 
 private:

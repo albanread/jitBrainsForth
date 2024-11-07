@@ -49,7 +49,7 @@ inline void compileWord(const std::string& wordName, const std::string& compileT
 {
 
 
-    traceon(wordName);
+    //traceon(wordName);
     bool logging = tracedWords.find(wordName) != tracedWords.end();
 
     if (logging)
