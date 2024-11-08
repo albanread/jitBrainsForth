@@ -10,7 +10,8 @@
 // Function pointer type
 typedef void (*ForthFunction)();
 
-enum ForthWordState {
+enum ForthWordState
+{
     NORMAL = 0,
     IMMEDIATE = 1 << 0,
     COMPILE_ONLY = 1 << 1,
@@ -18,50 +19,49 @@ enum ForthWordState {
 };
 
 // Structure to represent a word in the dictionary
-struct ForthWord {
-    char name[32]{};                 // Name of the word (fixed length for simplicity)
-    ForthFunction compiledFunc;      // Compiled Forth function pointer
-    ForthFunction generatorFunc;     // Used to generate 'inline' code.
-    ForthFunction immediateFunc;     // Immediate function pointer (if any)
-    ForthWord* link;                 // Pointer to the previous word in the dictionary
-    uint8_t state;                   // State of the word
-    uint64_t data;                   // New 64-bit value for storing data
+struct ForthWord
+{
+    char name[32]{}; // Name of the word (fixed length for simplicity)
+    ForthFunction compiledFunc; // Compiled Forth function pointer/ executed by interpreter, called by compiler.
+    ForthFunction generatorFunc; // Used to generate 'inline' code, only used by compiler.
+    ForthFunction immediateFunc; // Immediate function pointer only used by compiler.
+    ForthFunction terpFunc; // Immediate function pointer only used by interpreter
+    ForthWord* link; // Pointer to the previous word in the dictionary
+    uint8_t state; // State of the word
+    uint64_t data; // New 64-bit value for storing data
 
     // Constructor to initialize a word
-    ForthWord(const char* wordName, ForthFunction genny, ForthFunction func, ForthFunction immFunc, ForthWord* prev)
-        : generatorFunc(genny), compiledFunc(func), immediateFunc(immFunc), link(prev), state(ForthWordState::NORMAL), data(0)  // Set data to zero
+    ForthWord(const char* wordName,
+              ForthFunction genny,
+              ForthFunction func,
+              ForthFunction immFunc,
+              ForthFunction terpFunc,
+              ForthWord* prev)
+        : generatorFunc(genny), compiledFunc(func),
+          immediateFunc(immFunc), terpFunc(terpFunc),
+    link (prev), state(0), data(0) // Set data to zero
 
     {
         std::strncpy(name, wordName, sizeof(name));
         name[sizeof(name) - 1] = '\0'; // Ensure null-termination
     }
-
-    // construct blank word
-    ForthWord() : generatorFunc(nullptr), compiledFunc(nullptr), immediateFunc(nullptr), link(nullptr), state(ForthWordState::NORMAL), data(0) {}
-    // construct blank word
-    explicit ForthWord(const char* wordName) : generatorFunc(nullptr), compiledFunc(nullptr), immediateFunc(nullptr), link(nullptr), state(ForthWordState::NORMAL), data(0) {}
-    // construct blank word
-    ForthWord(const char* wordName, ForthFunction genny) : generatorFunc(genny), compiledFunc(nullptr), immediateFunc(nullptr), link(nullptr), state(ForthWordState::NORMAL), data(0) {}
-    // construct blank word
-    ForthWord(const char* wordName, ForthFunction genny, ForthFunction func) : generatorFunc(genny), compiledFunc(func), immediateFunc(nullptr), link(nullptr), state(ForthWordState::NORMAL), data(0) {}
-    // construct blank word
-    ForthWord(const char* wordName, ForthFunction genny, ForthFunction func, ForthFunction immFunc) : generatorFunc(genny), compiledFunc(func), immediateFunc(immFunc), link(nullptr), state(ForthWordState::NORMAL), data(0) {}
-
-
 };
 
 // Class to manage the Forth dictionary
-class ForthDictionary {
+class ForthDictionary
+{
 public:
     // Static method to get the singleton instance
-    static ForthDictionary& getInstance(size_t size = 1024*1024*8);
+    static ForthDictionary& getInstance(size_t size = 1024 * 1024 * 8);
 
     // Delete copy constructor and assignment operator to prevent copies
     ForthDictionary(const ForthDictionary&) = delete;
     ForthDictionary& operator=(const ForthDictionary&) = delete;
 
     // Add a new word to the dictionary
-    void addWord(const char* name, ForthFunction generatorFunc, ForthFunction compiledFunc, ForthFunction immediateFunc);
+    void addWord(const char* name, ForthFunction generatorFunc, ForthFunction compiledFunc, ForthFunction immediateFunc,
+                 ForthFunction
+                 immTerpFunc);
 
     // Find a word in the dictionary
     ForthWord* findWord(const char* name) const;
@@ -101,12 +101,9 @@ private:
     // Private constructor to prevent instantiation
     explicit ForthDictionary(size_t size);
 
-    std::vector<char> memory;    // Memory buffer for the dictionary
-    size_t currentPos;           // Current position in the memory buffer
-    ForthWord* latestWord;       // Pointer to the latest added word
-
-
-
+    std::vector<char> memory; // Memory buffer for the dictionary
+    size_t currentPos; // Current position in the memory buffer
+    ForthWord* latestWord; // Pointer to the latest added word
 };
 
 #endif // FORTH_DICTIONARY_H

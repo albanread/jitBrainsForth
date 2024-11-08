@@ -164,7 +164,7 @@ inline void compileWord(const std::string& wordName, const std::string& compileT
     // Finalize compiled word
     JitGenerator::genEpilogue();
     const ForthFunction f = JitGenerator::end();
-    d.addWord(wordName.c_str(), nullptr, f, nullptr);
+    d.addWord(wordName.c_str(), nullptr, f, nullptr, nullptr);
     if (logging) printf("Compiler: successfully compiled word: %s\n", wordName.c_str());
     if (logging) std::cout << "Code size: " << jc.code.codeSize() << std::endl;
 }

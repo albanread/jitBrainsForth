@@ -648,10 +648,14 @@ public:
     }
 
 
-    // The TO word safely updates the container.
+    // The TO word safely updates the container word
     //
     static void genTO()
     {
+
+        logging=true;
+        jc.loggingON();
+
         const auto& words = *jc.words;
         size_t pos = jc.pos_next_word + 1;
 
@@ -726,6 +730,10 @@ public:
         {
             throw std::runtime_error("Unknown word in TO: " + w);
         }
+
+        logging=false;
+        jc.loggingOFF();
+
     }
 
 
@@ -753,7 +761,7 @@ public:
         auto& a = *jc.assembler;
         commentWithWord(" ; ----- immediate value: ", word);
         // Add the word to the dictionary as a value
-        d.addWord(word.c_str(), nullptr, nullptr, nullptr);
+        d.addWord(word.c_str(), nullptr, nullptr, nullptr, nullptr);
         d.setData(initialValue); // Set the value
         auto dataAddress = d.get_data_ptr();
         d.setState(100); // value type
@@ -789,7 +797,7 @@ public:
         auto& a = *jc.assembler;
         commentWithWord(" ; ----- immediate value: ", word);
         // Add the word to the dictionary as a value
-        d.addWord(word.c_str(), nullptr, nullptr, nullptr);
+        d.addWord(word.c_str(), nullptr, nullptr, nullptr, nullptr);
         d.setData(0); // Set the value
         d.setState(101); // variable type
 
