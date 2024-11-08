@@ -13,8 +13,6 @@
 // Traced words set
 inline std::unordered_set<std::string> tracedWords;
 
-
-
 inline void traceon(const std::string& word)
 {
     tracedWords.insert(word);
@@ -43,13 +41,10 @@ inline void exec(ForthFunction f)
 }
 
 
-
-
 inline void compileWord(const std::string& wordName, const std::string& compileText)
 {
 
-
-    //traceon(wordName);
+    //traceon("test");
     bool logging = tracedWords.find(wordName) != tracedWords.end();
 
     if (logging)
@@ -174,11 +169,10 @@ inline void compileWord(const std::string& wordName, const std::string& compileT
     if (logging) std::cout << "Code size: " << jc.code.codeSize() << std::endl;
 }
 
-
 // interpreter calls words, or pushes numbers.
 inline void interpreter(const std::string& input)
 {
-    bool logging = false;
+    //bool logging = true;
     const auto words = split(input);
     if (logging) printf("Split words: ");
     for (const auto& word : words)
@@ -230,14 +224,43 @@ inline void interpreter(const std::string& input)
 
             // Compile the collected words
             compileWord(wordName, compileText);
+
+            // Skip the ";" in the input words
+            ++i;
         }
         else
         {
             auto* fword = d.findWord(word.c_str());
-            if (fword && fword->compiledFunc)
+
+            // Ensure fword is a valid pointer before dereferencing
+            if (fword)
             {
-                if (logging) printf("Calling word: %s\n", word.c_str());
-                 exec( fword->compiledFunc);
+                if (fword->compiledFunc)
+                {
+                    if (logging) printf("Calling word: %s\n", word.c_str());
+                    exec(fword->compiledFunc);
+                }
+                else if (fword->immediateFunc && fword->state > 32)
+                {
+                    if (logging) printf("Running immediate function of word: %s\n", word.c_str());
+                    jc.pos_next_word = i;
+                    jc.pos_last_word = 0;
+                    jc.words = &words;
+                    exec(fword->immediateFunc);
+                    if (jc.pos_last_word != 0)
+                    {
+                        i = jc.pos_last_word;
+                    }
+                }
+                else
+                {
+                    if (logging) std::cout << "Error: Word [" << word << "] found but cannot be executed.\n";
+                    // display word details here
+
+                    d.displayWord(word);
+
+                    throw std::runtime_error("Cannot execute word: " + word);
+                }
             }
             else if (is_number(word))
             {
@@ -245,19 +268,17 @@ inline void interpreter(const std::string& input)
                 {
                     const uint64_t number = std::stoll(word.c_str());
                     sm.pushDS(number);
-                    if (logging) printf("Pushing  %s\n", word.c_str());
+                    if (logging) printf("Pushing %s\n", word.c_str());
                 }
                 catch (const std::invalid_argument& e)
                 {
                     if (logging) std::cout << "Error: Invalid number: " << word << std::endl;
-
-                    return;
+                    throw;
                 }
                 catch (const std::out_of_range& e)
                 {
                     if (logging) std::cout << "Error: Number out of range: " << word << std::endl;
-
-                    return;
+                    throw;
                 }
             }
             else
@@ -269,7 +290,6 @@ inline void interpreter(const std::string& input)
         ++i;
     }
 }
-
 inline void interactive_terminal()
 {
     std::string input;
@@ -280,10 +300,6 @@ inline void interactive_terminal()
     // the infinite terminal loop
     while (true)
     {
-
-
-
-
         std::cout << (compiling ? "] " : "> ");
         std::getline(std::cin, input); // Read a line of input from the terminal
 
@@ -344,6 +360,7 @@ inline void Quit()
         // reset on quit
 
         sm.resetDS();
+        printf("\nreset by quit\n");
 
     }
 }

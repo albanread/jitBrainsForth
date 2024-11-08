@@ -223,9 +223,25 @@ public:
             : "=r"(currentDsPtr) // output
         );
 
-        uint64_t dsDepth = (reinterpret_cast<uint64_t>(dsTop) - reinterpret_cast<uint64_t>(currentDsPtr))/8;
-        return dsDepth-1;
+        uint64_t dsDepth = (reinterpret_cast<uint64_t>(dsTop) - reinterpret_cast<uint64_t>(currentDsPtr));
+        if (dsDepth ==0) return 0;
+        return (dsDepth/8);
     }
+
+    [[nodiscard]] uint64_t getDSDepthInBytes() const
+    {
+        uint64_t currentDsPtr;
+
+        // Get the current value of dsPtr from r15 register
+        asm volatile (
+            "mov %%r15, %0;"
+            : "=r"(currentDsPtr) // output
+        );
+
+        uint64_t dsDepth = (reinterpret_cast<uint64_t>(dsTop) - reinterpret_cast<uint64_t>(currentDsPtr));
+        return dsDepth;
+    }
+
 
     [[nodiscard]] uint64_t getRStop() const
     {
@@ -250,15 +266,31 @@ public:
     {
         uint64_t currentRsPtr;
 
-        // Get the current value of dsPtr from r15 register
+        // Get the current value of dsPtr from r14 register
         asm volatile (
             "mov %%r14, %0;"
             : "=r"(currentRsPtr) // output
         );
 
-        uint64_t rsDepth = (reinterpret_cast<uint64_t>(rsTop) - reinterpret_cast<uint64_t>(currentRsPtr))/8;
-        return rsDepth;
+        uint64_t rsDepth = (reinterpret_cast<uint64_t>(rsTop) - reinterpret_cast<uint64_t>(currentRsPtr));
+        if (rsDepth ==0) return 0;
+        return (rsDepth/8);
     }
+
+    [[nodiscard]] uint64_t getRSDepthInBytes() const
+    {
+        uint64_t currentRsPtr;
+
+        // Get the current value of dsPtr from r15 register
+        asm volatile (
+            "mov %%r15, %0;"
+            : "=r"(currentRsPtr) // output
+        );
+
+        uint64_t dsDepth = (reinterpret_cast<uint64_t>(rsTop) - reinterpret_cast<uint64_t>(currentRsPtr));
+        return dsDepth;
+    }
+
 
     [[nodiscard]] uint64_t getLStop() const
     {

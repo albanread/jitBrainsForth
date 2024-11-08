@@ -25,15 +25,29 @@ struct ForthWord {
     ForthFunction immediateFunc;     // Immediate function pointer (if any)
     ForthWord* link;                 // Pointer to the previous word in the dictionary
     uint8_t state;                   // State of the word
+    uint64_t data;                   // New 64-bit value for storing data
 
     // Constructor to initialize a word
     ForthWord(const char* wordName, ForthFunction genny, ForthFunction func, ForthFunction immFunc, ForthWord* prev)
-        : generatorFunc(genny), compiledFunc(func), immediateFunc(immFunc), link(prev), state(ForthWordState::NORMAL)
+        : generatorFunc(genny), compiledFunc(func), immediateFunc(immFunc), link(prev), state(ForthWordState::NORMAL), data(0)  // Set data to zero
 
     {
         std::strncpy(name, wordName, sizeof(name));
         name[sizeof(name) - 1] = '\0'; // Ensure null-termination
     }
+
+    // construct blank word
+    ForthWord() : generatorFunc(nullptr), compiledFunc(nullptr), immediateFunc(nullptr), link(nullptr), state(ForthWordState::NORMAL), data(0) {}
+    // construct blank word
+    explicit ForthWord(const char* wordName) : generatorFunc(nullptr), compiledFunc(nullptr), immediateFunc(nullptr), link(nullptr), state(ForthWordState::NORMAL), data(0) {}
+    // construct blank word
+    ForthWord(const char* wordName, ForthFunction genny) : generatorFunc(genny), compiledFunc(nullptr), immediateFunc(nullptr), link(nullptr), state(ForthWordState::NORMAL), data(0) {}
+    // construct blank word
+    ForthWord(const char* wordName, ForthFunction genny, ForthFunction func) : generatorFunc(genny), compiledFunc(func), immediateFunc(nullptr), link(nullptr), state(ForthWordState::NORMAL), data(0) {}
+    // construct blank word
+    ForthWord(const char* wordName, ForthFunction genny, ForthFunction func, ForthFunction immFunc) : generatorFunc(genny), compiledFunc(func), immediateFunc(immFunc), link(nullptr), state(ForthWordState::NORMAL), data(0) {}
+
+
 };
 
 // Class to manage the Forth dictionary
@@ -59,11 +73,26 @@ public:
     void storeData(const void* data, size_t dataSize);
 
     // Get the latest added word
-    ForthWord* getLatestWord();
+    [[nodiscard]] ForthWord* getLatestWord() const;
+    [[nodiscard]] uint64_t getCurrentPos() const;
+    [[nodiscard]] uint64_t getCurrentLocation() const;
 
     // Add base words to the dictionary
-    void add_base_words();
+    static void add_base_words();
     void forgetLastWord();
+    void setData(uint64_t data) const;
+    void setCompiledFunction(ForthFunction func) const;
+    void setImmediateFunction(ForthFunction func) const;
+    void setGeneratorFunction(ForthFunction func) const;
+    void setState(uint8_t i);
+    [[nodiscard]] uint8_t getState() const;
+    void setName(std::string name);
+    void setData(uint64_t d);
+    uint64_t getData() const;
+    void* get_data_ptr();
+    void displayWord(std::string name);
+    void SetState(uint8_t i);
+
 
     // List all words in the dictionary
     void list_words() const;

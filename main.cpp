@@ -16,7 +16,6 @@ JitGenerator& gen = JitGenerator::getInstance();
 // start to test some code generation
 
 
-
 void add_words()
 {
     // d.addWord("1", JitGenerator::push1, JitGenerator::build_forth(JitGenerator::push1), nullptr);
@@ -34,6 +33,8 @@ void add_words()
     d.addWord("2*", JitGenerator::gen2mul, JitGenerator::build_forth(JitGenerator::gen2mul), nullptr);
     d.addWord("4*", JitGenerator::gen4mul, JitGenerator::build_forth(JitGenerator::gen4mul), nullptr);
     d.addWord("8*", JitGenerator::gen8mul, JitGenerator::build_forth(JitGenerator::gen8mul), nullptr);
+    d.addWord("10*", JitGenerator::genMulBy10, JitGenerator::build_forth(JitGenerator::genMulBy10), nullptr);
+
     d.addWord("16*", JitGenerator::gen16mul, JitGenerator::build_forth(JitGenerator::gen16mul), nullptr);
 
     d.addWord("2/", JitGenerator::gen2Div, JitGenerator::build_forth(JitGenerator::gen2Div), nullptr);
@@ -71,7 +72,7 @@ void add_words()
     d.addWord("SP@", JitGenerator::genDSAT, JitGenerator::build_forth(JitGenerator::genDSAT), nullptr);
 
     // add depth
-    d.addWord("DEPTH", JitGenerator::genDepth, JitGenerator::build_forth(JitGenerator::genDepth), nullptr);
+    d.addWord("DEPTH", JitGenerator::genDepth2, JitGenerator::build_forth(JitGenerator::genDepth2), nullptr);
     // add nip and tuck words
     d.addWord("NIP", JitGenerator::genNip, JitGenerator::build_forth(JitGenerator::genNip), nullptr);
     d.addWord("TUCK", JitGenerator::genTuck, JitGenerator::build_forth(JitGenerator::genTuck), nullptr);
@@ -113,14 +114,24 @@ void add_words()
     d.addWord("LEAVE", nullptr, nullptr, JitGenerator::genLeave);
     d.addWord("{", nullptr, nullptr, JitGenerator::gen_leftBrace);
     d.addWord("to", nullptr, nullptr, JitGenerator::genTO);
-
+    d.setState(128); // flag word as also available to interpreter
+    d.addWord("value", nullptr, nullptr, JitGenerator::genImmediateValue);
+    d.setState(128);// flag word as also available to interpreter
+    d.addWord("variable", nullptr, nullptr, JitGenerator::genImmediateVariable);
+    d.setState(128);// flag word as also available to interpreter
     d.addWord(".", JitGenerator::genDot, JitGenerator::build_forth(JitGenerator::genDot), nullptr);
     d.addWord("emit", JitGenerator::genEmit, JitGenerator::build_forth(JitGenerator::genEmit), nullptr);
     d.addWord(".s", nullptr, JitGenerator::dotS, nullptr);
+    d.addWord("words", nullptr, JitGenerator::words, nullptr);
+    d.addWord("see", nullptr, nullptr, JitGenerator::see);
+    d.setState(128);
 
-    compileWord("space", "13 emit 10 emit");
+    compileWord("space", "32 emit");
+    compileWord("spaces", "0 do space loop");
     compileWord("cr", "13 emit 10 emit");
     compileWord("sq", "dup * ");
+
+
 }
 
 
@@ -129,6 +140,7 @@ int main()
     jc.loggingOFF();
     add_words();
     run_basic_tests();
+    d.list_words();
 
 
     try

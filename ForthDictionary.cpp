@@ -1,8 +1,9 @@
 #include "ForthDictionary.h"
-#include <algorithm>
 #include <cctype>
 #include <stdexcept>
 #include <iostream>
+
+#include "JitGenerator.h"
 
 // Static method to get the singleton instance
 ForthDictionary& ForthDictionary::getInstance(size_t size) {
@@ -28,6 +29,7 @@ void ForthDictionary::addWord(const char* name, ForthFunction generatorFunc, For
 
     // Correctly set the latest word to the new word
     latestWord = newWord;
+
 
     currentPos += sizeof(ForthWord);
 
@@ -66,8 +68,17 @@ void ForthDictionary::storeData(const void* data, size_t dataSize) {
 }
 
 // Get the latest added word
-ForthWord* ForthDictionary::getLatestWord() {
+ForthWord* ForthDictionary::getLatestWord() const
+{
     return latestWord;
+}
+
+uint64_t ForthDictionary::getCurrentPos() const {
+    return (uint64_t)currentPos;
+}
+
+uint64_t ForthDictionary::getCurrentLocation() const {
+    return reinterpret_cast<uint64_t>(&memory[currentPos]);
 }
 
 // Add base words to the dictionary
@@ -99,6 +110,84 @@ void ForthDictionary::add_base_words() {
         std::cout << "No more words in dictionary" << std::endl;
     }
 }
+
+// set the data field
+void ForthDictionary::setData(uint64_t data) const
+{
+    latestWord->data = data;
+}
+
+void ForthDictionary::setCompiledFunction(ForthFunction func) const
+{
+    latestWord->compiledFunc = func;
+}
+
+void ForthDictionary::setImmediateFunction(ForthFunction func) const
+{
+    latestWord->immediateFunc = func;
+}
+
+void ForthDictionary::setGeneratorFunction(ForthFunction func) const
+{
+    latestWord->generatorFunc = func;
+}
+
+void ForthDictionary::setState(uint8_t i)
+{
+    latestWord->state = i;
+}
+
+uint8_t ForthDictionary::getState() const
+{
+    return latestWord->state;
+}
+
+void ForthDictionary::setName(std::string name)
+{
+    std::strncpy(latestWord->name, name.c_str(), sizeof(latestWord->name));
+    latestWord->name[sizeof(latestWord->name) - 1] = '\0'; // Ensure null-termination
+}
+
+void ForthDictionary::setData(uint64_t d)
+{
+    latestWord->data = d;
+}
+
+uint64_t ForthDictionary::getData() const
+{
+    return latestWord->data;
+}
+
+// get pointer to data
+void* ForthDictionary::get_data_ptr()
+{
+    return &latestWord->data;
+}
+
+
+
+void ForthDictionary::displayWord(std::string name)
+{
+
+    std::cout << "Displaying word " << name << std::endl;
+    auto* word = findWord(name.c_str());
+    if (word == nullptr) {
+        std::cout << "Word not found" << std::endl;
+        return;
+    }
+    std::cout << "Name: " << word->name << std::endl;
+
+    // display function addresses in hex
+    std::cout << "Compiled function: " << std::hex << word->compiledFunc << std::endl;
+    std::cout << "Immediate function: " << std::hex << word->immediateFunc << std::endl;
+    std::cout << "Generator function: " << std::hex << word->generatorFunc << std::endl;
+    std::cout << "State: " << word->state << std::endl;
+    std::cout << "Data: " << word->data << std::endl;
+    std::cout << "Link: " << word->link << std::endl << std::endl;
+
+}
+
+
 
 // List all words in the dictionary
 void ForthDictionary::list_words() const {

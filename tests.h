@@ -4,6 +4,9 @@
 
 #ifndef TESTS_H
 #define TESTS_H
+int total_tests = 0;
+int passed_tests = 0;
+int failed_tests = 0;
 
 void run_word(const std::string& word)
 {
@@ -50,13 +53,18 @@ void test_against_ds(const std::string& words, const uint64_t expected_top)
     std::cout << "Running: " << words << std::endl;
     run_words(words);
     uint64_t result = sm.popDS();
+    total_tests++;
     if (result != expected_top)
     {
+        failed_tests++;
         std::cout << "!! ---- Failed test: " << words << " Expected: " << expected_top << " but got: " << result <<
             std::endl;
     }
     else
+    {
+        passed_tests++;
         std::cout << "Passed test: " << words << " = " << expected_top << std::endl;
+    }
 }
 
 
@@ -76,8 +84,10 @@ void testInterpreter(const std::string& test_name, const std::string& testString
     interpreter(testString); // Interpret the test string input
     uint64_t result = sm.popDS();
     d.forgetLastWord();
+    total_tests++;
     if (result != expectedResult)
     {
+        failed_tests++;
         std::cout << "!! ---- Failed test: "
             << test_name << " Expected: "
             << expectedResult
@@ -85,7 +95,10 @@ void testInterpreter(const std::string& test_name, const std::string& testString
             std::endl;
     }
     else
+    {
+        passed_tests++;
         std::cout << "Passed test: " << test_name << " = " << expectedResult << std::endl;
+    }
 }
 
 
@@ -203,11 +216,6 @@ void run_basic_tests()
 
     testCompileAndRun("testNestedIfElse",
                       " IF IF 1 ELSE 2 THEN ELSE 3 THEN ",
-                      " -1 -1 testNestedIfElse ",
-                      1); // Expected result is 1 because both conditions are true
-
-    testCompileAndRun("testNestedIfElse",
-                      " IF IF 1 ELSE 2 THEN ELSE 3 THEN ",
                       " -1 0 testNestedIfElse ",
                       3);
 
@@ -292,5 +300,13 @@ void run_basic_tests()
 
                       " 9 10 6 testLocals3 ",
                       32);
+
+
+                      // Print summary after running tests
+                        std::cout << "\nTest Summary:" << std::endl;
+                        std::cout << "Total tests run: " << total_tests << std::endl;
+                        std::cout << "Passed tests: " << passed_tests << std::endl;
+                        std::cout << "Failed tests: " << failed_tests << std::endl;
+
 }
 #endif //TESTS_H

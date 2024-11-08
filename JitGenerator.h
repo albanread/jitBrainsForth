@@ -295,7 +295,6 @@ public:
         auto& a = *jc.assembler;
         a.comment(" ; ----- pushDS");
         a.comment(" ; save value to the data stack (r15)");
-        a.nop();
         a.sub(asmjit::x86::r15, 8);
         a.mov(asmjit::x86::qword_ptr(asmjit::x86::r15), reg);
     }
@@ -314,6 +313,26 @@ public:
         a.mov(reg, asmjit::x86::qword_ptr(asmjit::x86::r15));
         a.add(asmjit::x86::r15, 8);
     }
+
+    // load the value at address into DS, consumes rax.
+    static void loadDS(void* dataAddress)
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("gen_prologue: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        // Load the address into rax
+        a.mov(asmjit::x86::rax, dataAddress);
+
+        // Dereference the address to get the value and store it into rax
+        a.mov(asmjit::x86::rax, asmjit::x86::ptr(asmjit::x86::rax));
+
+        // Push the value onto the data stack
+        pushDS(asmjit::x86::rax);
+    }
+
 
     static void pushRS(asmjit::x86::Gp reg)
     {
@@ -600,9 +619,37 @@ public:
         }
     }
 
-    // TO - this is an immediate word that pops the stack and
-    // stores it in the next word, assuming that is a value or a local.
 
+    // genFetch - fetch the contents of the address
+    static void genFetch(uint64_t address)
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("entryFunction: Assembler not initialized");
+        }
+        auto& a = *jc.assembler;
+        asmjit::x86::Gp addr = asmjit::x86::rax; // General purpose register for address
+        asmjit::x86::Gp value = asmjit::x86::rdi; // General purpose register for the value
+        a.mov(addr, address); // Move the address into the register.
+        a.mov(value, asmjit::x86::ptr(addr));
+        pushDS(value); // Push the value onto the stack.
+    }
+
+    // display details on word
+    static void see()
+    {
+        const auto& words = *jc.words;
+        size_t pos = jc.pos_next_word + 1;
+        std::string w = words[pos];
+        jc.word = w;
+        // display word w
+        d.displayWord(w);
+        jc.pos_last_word = pos;
+    }
+
+
+    // The TO word safely updates the container.
+    //
     static void genTO()
     {
         const auto& words = *jc.words;
@@ -610,24 +657,156 @@ public:
 
         std::string w = words[pos];
         jc.word = w;
-        // this needs to be a word, we can store things in.
+        // This needs to be a word we can store things in.
 
         if (!jc.assembler)
         {
             throw std::runtime_error("entryFunction: Assembler not initialized");
         }
 
+        // Current assembler instance
         auto& a = *jc.assembler;
 
-
+        // Check for a local variable
         int offset = findLocal(w);
         if (offset != INVALID_OFFSET)
         {
-            commentWithWord("; TO ----- pop stack into ");
+            commentWithWord("; TO ----- pop stack into local variable: ", w);
+
+            // Pop the value from the data stack into ecx
             popDS(asmjit::x86::ecx);
+
+            // Store the value into the local variable
             a.mov(asmjit::x86::qword_ptr(asmjit::x86::r13, offset), asmjit::x86::ecx);
+
+            jc.pos_last_word = pos;
+            return;
         }
+
+        // Get the word from the dictionary
+        auto fword = d.findWord(w.c_str());
+        if (fword)
+        {
+            auto word_type = fword->state;
+            if (word_type == 100) // value
+            {
+                auto data_address = reinterpret_cast<uint64_t>(&fword->data);
+                commentWithWord("; TO ----- update value: ", w);
+
+                // Load the address of the word's data
+                a.mov(asmjit::x86::rax, data_address);
+
+                // Pop the value from the data stack into rcx
+                popDS(asmjit::x86::rcx);
+
+                // Store the value into the address
+                a.mov(asmjit::x86::qword_ptr(asmjit::x86::rax), asmjit::x86::rcx);
+            }
+            else if (word_type == 101) // variable
+            {
+                commentWithWord("; TO ----- pop stack into VARIABLE: ", w);
+
+                // Load the address of the data (double indirect access)
+                auto variable_address = reinterpret_cast<uint64_t>(&fword->data);
+                a.mov(asmjit::x86::rax, variable_address); // Load the address of the address
+
+                // Load the address stored at the variable address
+                a.mov(asmjit::x86::rax, asmjit::x86::qword_ptr(asmjit::x86::rax));
+
+                // Pop the value from the data stack into rcx
+                popDS(asmjit::x86::rcx);
+
+                // Store the value into the address the variable points to
+                a.mov(asmjit::x86::qword_ptr(asmjit::x86::rax), asmjit::x86::rcx);
+            }
+
+            jc.pos_last_word = pos;
+        }
+        else
+        {
+            throw std::runtime_error("Unknown word in TO: " + w);
+        }
+    }
+
+
+    // immediate value, runs when value is called.
+    // 10 VALUE fred
+    static void genImmediateValue()
+    {
+        //logging = true;
+        //jc.loggingON();
+        const auto& words = *jc.words;
+        size_t pos = jc.pos_next_word + 1;
+
+        std::string word = words[pos];
+        jc.word = word;
+
+
+        // Pop the initial value from the data stack
+        auto initialValue = sm.popDS();
+        //printf("initialValue: %llu\n", initialValue);
+        jc.resetContext();
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("entryFunction: Assembler not initialized");
+        }
+        auto& a = *jc.assembler;
+        commentWithWord(" ; ----- immediate value: ", word);
+        // Add the word to the dictionary as a value
+        d.addWord(word.c_str(), nullptr, nullptr, nullptr);
+        d.setData(initialValue); // Set the value
+        auto dataAddress = d.get_data_ptr();
+        d.setState(100); // value type
+
+        a.comment(" ; ----- fetch value");
+        loadDS(dataAddress);
+        a.ret();
+
+        ForthFunction compiledFunc = end();
+        d.setCompiledFunction(compiledFunc);
+        // Update position
         jc.pos_last_word = pos;
+        //logging = false;
+        //jc.loggingOFF();
+    }
+
+
+    static void genImmediateVariable()
+    {
+        //logging = true;
+        //jc.loggingON();
+        const auto& words = *jc.words;
+        size_t pos = jc.pos_next_word + 1;
+
+        std::string word = words[pos];
+        jc.word = word;
+
+        jc.resetContext();
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("entryFunction: Assembler not initialized");
+        }
+        auto& a = *jc.assembler;
+        commentWithWord(" ; ----- immediate value: ", word);
+        // Add the word to the dictionary as a value
+        d.addWord(word.c_str(), nullptr, nullptr, nullptr);
+        d.setData(0); // Set the value
+        d.setState(101); // variable type
+
+        auto dataAddress = d.get_data_ptr();
+        // Generate prologue for function
+        //printf("dataAddress: %llu\n", dataAddress);
+        // use the data address to fetch the value
+        a.comment(" ; ----- fetch variable address ");
+        a.mov(asmjit::x86::rax, dataAddress);
+        pushDS(asmjit::x86::rax);
+        a.ret();
+        ForthFunction compiledFunc = end();
+        d.setCompiledFunction(compiledFunc);
+        // Update position
+        jc.pos_last_word = pos;
+        //logging = false;
+        //jc.loggingOFF();
     }
 
 
@@ -840,6 +1019,11 @@ public:
         sm.displayStacks();
     }
 
+    static void words()
+    {
+        d.list_words();
+    }
+
     static void prim_forget()
     {
         d.forgetLastWord();
@@ -900,6 +1084,13 @@ public:
         sm.pushDS(depth + 1);
     }
 
+    static void prim_depth2()
+    {
+        const uint64_t depth = sm.getDSDepth();
+        sm.pushDS(depth);
+    }
+
+
     static void genDepth()
     {
         if (!jc.assembler)
@@ -919,6 +1110,25 @@ public:
         restoreStackPointers();
     }
 
+
+    static void genDepth2()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("gen_emit: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- gen_emit");
+
+        preserveStackPointers();
+        // Allocate space for the shadow space (32 bytes).
+        a.sub(asmjit::x86::rsp, 32);
+        a.call(asmjit::imm(reinterpret_cast<void*>(prim_depth2)));
+        // Restore stack.
+        a.add(asmjit::x86::rsp, 32);
+        restoreStackPointers();
+    }
 
     static void genPushLong()
     {
@@ -2331,25 +2541,25 @@ public:
 
     // Helper function to generate code for pushing constants onto the stack
 
-static void genPushConstant(int64_t value)
-{
-    auto& a = *jc.assembler;
-    asmjit::x86::Gp ds = asmjit::x86::r15; // Stack pointer register
+    static void genPushConstant(int64_t value)
+    {
+        auto& a = *jc.assembler;
+        asmjit::x86::Gp ds = asmjit::x86::r15; // Stack pointer register
 
-    if (value >= std::numeric_limits<int32_t>::min() && value <= std::numeric_limits<int32_t>::max())
-    {
-        // Push a 32-bit immediate value (optimized for smaller constants)
-        a.sub(ds, 8); // Reserve space on the stack
-        a.mov(asmjit::x86::qword_ptr(ds), static_cast<int32_t>(value));
+        if (value >= std::numeric_limits<int32_t>::min() && value <= std::numeric_limits<int32_t>::max())
+        {
+            // Push a 32-bit immediate value (optimized for smaller constants)
+            a.sub(ds, 8); // Reserve space on the stack
+            a.mov(asmjit::x86::qword_ptr(ds), static_cast<int32_t>(value));
+        }
+        else
+        {
+            // For larger/negative 64-bit constants
+            asmjit::x86::Mem stackMem(ds, -8); // Memory location for pushing the constant
+            a.sub(ds, 8); // Reserve space on the stack
+            a.mov(stackMem, value); // Move the 64-bit value directly to the reserved space
+        }
     }
-    else
-    {
-        // For larger/negative 64-bit constants
-        asmjit::x86::Mem stackMem(ds, -8); // Memory location for pushing the constant
-        a.sub(ds, 8); // Reserve space on the stack
-        a.mov(stackMem, value); // Move the 64-bit value directly to the reserved space
-    }
-}
 
     // Macros or inline functions to call the helper function with specific values
 #define GEN_PUSH_CONSTANT_FN(name, value) \
@@ -2431,7 +2641,7 @@ static void genPushConstant(int64_t value)
 
         a.comment("; multiply by ten");
         // Load the top stack value into tempValue
-        a.mov(tempValue, asmjit::x86::qword_ptr(ds));
+        popDS(tempValue);
 
         // Perform the shift left by 3 (Value * 8)
         a.mov(tempResult, tempValue);
@@ -2444,7 +2654,7 @@ static void genPushConstant(int64_t value)
         a.add(tempResult, tempValue);
 
         // Store the result back on the stack
-        a.mov(asmjit::x86::qword_ptr(ds), tempResult);
+        pushDS(tempResult);
     }
 
 
