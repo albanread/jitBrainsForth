@@ -75,7 +75,6 @@ inline std::string scanForLiterals(const std::string& compileText) {
 inline void compileWord(const std::string& wordName, const std::string& compileText)
 {
 
-
     std::string newCompileText = scanForLiterals(compileText);
 
     bool logging = tracedWords.find(wordName) != tracedWords.end();
@@ -207,7 +206,10 @@ inline void compileWord(const std::string& wordName, const std::string& compileT
 // interpreter calls words, or pushes numbers.
 inline void interpreter(const std::string& input)
 {
-    const auto words = split(input);
+
+    std::string newCompileText = scanForLiterals(input);
+
+    const auto words = split(newCompileText);
 
     if (logging) printf("Split words: ");
     for (const auto& word : words)
@@ -275,9 +277,9 @@ inline void interpreter(const std::string& input)
                     if (logging) printf("Calling word: %s\n", word.c_str());
                     exec(fword->compiledFunc);
                 }
-                else if (fword->terpFunc)
+                else if (fword->terpFunc) // these are immediate words.
                 {
-                    if (logging) printf("Running  interpreter function of word: %s\n", word.c_str());
+                    if (logging) printf("Running interpreter immediate word: %s\n", word.c_str());
                     jc.pos_next_word = i;
                     jc.pos_last_word = 0;
                     jc.words = &words;

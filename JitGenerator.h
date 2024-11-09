@@ -879,6 +879,51 @@ public:
     }
 
 
+
+    // immediate value, runs when value is called.
+    // s" literal string" VALUE fred
+    static void genImmediateStringValue()
+    {
+        //logging = true;
+        //jc.loggingON();
+        const auto& words = *jc.words;
+        size_t pos = jc.pos_next_word + 1;
+
+        std::string word = words[pos];
+        jc.word = word;
+
+
+        // Pop the initial value from the data stack
+        auto initialValue = sm.popDS();
+        //printf("initialValue: %llu\n", initialValue);
+        jc.resetContext();
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("entryFunction: Assembler not initialized");
+        }
+        auto& a = *jc.assembler;
+        commentWithWord(" ; ----- immediate value: ", word);
+        // Add the word to the dictionary as a value
+        d.addWord(word.c_str(), nullptr, nullptr, nullptr, nullptr);
+        d.setData(initialValue); // Set the value
+        auto dataAddress = d.get_data_ptr();
+        d.setType(ForthWordType::STRING); // value type
+
+        a.comment(" ; ----- fetch value");
+        loadDS(dataAddress);
+        a.ret();
+
+        ForthFunction compiledFunc = endGeneration();
+        d.setCompiledFunction(compiledFunc);
+        // Update position
+        jc.pos_last_word = pos;
+        //logging = false;
+        //jc.loggingOFF();
+    }
+
+
+
+
     static void genImmediateVariable()
     {
         //logging = true;
@@ -939,16 +984,14 @@ public:
         return nullptr;
     }
 
-
+    // supports ."
     static void genImmediateDotQuote()
     {
-        //logging = true;
-        //jc.loggingON();
         const auto& words = *jc.words;
         size_t pos = jc.pos_next_word + 1;
         std::string word = words[pos];
         jc.word = word;
-        printf("genImmediateDotQuote: %s\n", word.c_str());
+        if (logging) printf("genImmediateDotQuote: %s\n", word.c_str());
         auto address = stripPointer(word);
 
         if (!jc.assembler)
@@ -970,6 +1013,44 @@ public:
 
         jc.pos_last_word = pos;
     }
+
+    // support s" for compiler code generation
+    static void genImmediateSQuote()
+    {
+        const auto& words = *jc.words;
+        size_t pos = jc.pos_next_word + 1;
+        std::string word = words[pos];
+        jc.word = word;
+        printf("genImmediateSQuote: %s\n", word.c_str());
+        auto address = stripPointer(word);
+
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("entryFunction: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        commentWithWord(" ; ----- s\" stacking text ");
+        a.mov(asmjit::x86::rcx, address);
+        pushDS(asmjit::x86::rcx);
+
+        jc.pos_last_word = pos;
+    }
+
+    // support s" for interpreter immediate execution.
+    static void genTerpImmediateSQuote()
+    {
+        const auto& words = *jc.words;
+        size_t pos = jc.pos_next_word + 1;
+        std::string word = words[pos];
+        jc.word = word;
+        printf("genImmediateSQuote: %s\n", word.c_str());
+        auto address = stripPointer(word);
+        sm.pushDS(reinterpret_cast<uint64_t>(address));
+        jc.pos_last_word = pos;
+    }
+
+
 
 
     //
@@ -1094,6 +1175,7 @@ public:
             a.comment(" ; ----- free locals");
             a.add(asmjit::x86::r13, totalLocalsCount * 8);
             // Restore the return stack pointer by adding the total local count.
+            arguments_to_local_count = locals_count = returned_arguments_count = 0;
         }
 
         exitFunction();

@@ -119,10 +119,12 @@ void add_words()
 
 
     d.addWord(".\"", nullptr, nullptr, JitGenerator::genImmediateDotQuote, nullptr);
-
+    d.addWord("s\"", nullptr, nullptr, JitGenerator::genImmediateSQuote, JitGenerator::genTerpImmediateSQuote);
 
 
     d.addWord("value", nullptr, nullptr, nullptr, JitGenerator::genImmediateValue);
+    d.addWord("string", nullptr, nullptr, nullptr, JitGenerator::genImmediateStringValue);
+
     d.addWord("variable", nullptr, nullptr, nullptr, JitGenerator::genImmediateVariable);
 
     d.addWord("DEPTH", JitGenerator::genDepth2, JitGenerator::build_forth(JitGenerator::genDepth2), nullptr, nullptr);
