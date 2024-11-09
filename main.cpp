@@ -141,7 +141,5 @@ int main()
     jc.loggingOFF();
     add_words();
     run_basic_tests();
-
-
-   // Quit();
+    Quit();
 }
