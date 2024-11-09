@@ -303,7 +303,7 @@ void run_basic_tests()
 
 
                       // Print summary after running tests
-                        std::cout << "\nTest Summary:" << std::endl;
+                        std::cout << "\nTest results:" << std::endl;
                         std::cout << "Total tests run: " << total_tests << std::endl;
                         std::cout << "Passed tests: " << passed_tests << std::endl;
                         std::cout << "Failed tests: " << failed_tests << std::endl;
