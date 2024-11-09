@@ -314,7 +314,7 @@ public:
         a.add(asmjit::x86::r15, 8);
     }
 
-    // load the value at address into DS, consumes rax.
+    // load the value from the address
     static void loadDS(void* dataAddress)
     {
         if (!jc.assembler)
@@ -332,6 +332,60 @@ public:
         // Push the value onto the data stack
         pushDS(asmjit::x86::rax);
     }
+
+    // load address from DS, fetch value and push
+    static void loadFromDS()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("gen_prologue: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        // Load the address into rax
+        popDS(asmjit::x86::rax);
+        // Dereference the address to get the value and store it into rax
+        a.mov(asmjit::x86::rax, asmjit::x86::ptr(asmjit::x86::rax));
+        // Push the value onto the data stack
+        pushDS(asmjit::x86::rax);
+    }
+
+
+    // store the value from DS into the address specified, consumes rax.
+    static void storeDS(void* dataAddress)
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("gen_prologue: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        // Pop the value from the data stack into rax
+        popDS(asmjit::x86::rax);
+
+        // Load the address into rcx
+        a.mov(asmjit::x86::rcx, dataAddress);
+        // Store the value from rax into the address pointed to by rcx
+        a.mov(asmjit::x86::qword_ptr(asmjit::x86::rcx), asmjit::x86::rax);
+    }
+
+
+    // store the value from DS into the address from DS, consumes rax, rxc
+    static void storeFromDS()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("gen_prologue: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        // Pop the value from the data stack into rax
+        popDS(asmjit::x86::rcx); // address
+        popDS(asmjit::x86::rax); // data
+        // Store the value from rax into the address pointed to by rcx
+        a.mov(asmjit::x86::qword_ptr(asmjit::x86::rcx), asmjit::x86::rax);
+    }
+
 
 
     static void pushRS(asmjit::x86::Gp reg)
@@ -649,11 +703,10 @@ public:
 
 
     // The TO word safely updates the container word
-    //
+    // in compile mode only.
     static void genTO()
     {
-
-        logging=true;
+        logging = true;
         jc.loggingON();
 
         const auto& words = *jc.words;
@@ -688,13 +741,14 @@ public:
         }
 
         // Get the word from the dictionary
+
         auto fword = d.findWord(w.c_str());
         if (fword)
         {
-            auto word_type = fword->state;
-            if (word_type == 100) // value
+            auto word_type = fword->type;
+            if (word_type == ForthWordType::VALUE) // value
             {
-                auto data_address = reinterpret_cast<uint64_t>(&fword->data);
+                auto data_address = d.get_data_ptr();
                 commentWithWord("; TO ----- update value: ", w);
 
                 // Load the address of the word's data
@@ -706,22 +760,70 @@ public:
                 // Store the value into the address
                 a.mov(asmjit::x86::qword_ptr(asmjit::x86::rax), asmjit::x86::rcx);
             }
-            else if (word_type == 101) // variable
+            else if (word_type == ForthWordType::VARIABLE) // variable
             {
                 commentWithWord("; TO ----- pop stack into VARIABLE: ", w);
 
+                // Get the address of the variable's data
+                auto* variable_address = reinterpret_cast<int64_t*>(d.get_data_ptr());
+                if (!variable_address)
+                {
+                    throw std::runtime_error("Failed to get variable address for word: " + w);
+                }
+                storeDS(variable_address);
+            }
+            jc.pos_last_word = pos;
+        }
+        else
+        {
+            throw std::runtime_error("Unknown word in TO: " + w);
+        }
+
+        logging = false;
+        jc.loggingOFF();
+    }
+
+
+    // The TO word safely updates the container word
+    // in interpret mode only.
+    static void execTO()
+    {
+        logging = true;
+        jc.loggingON();
+
+        const auto& words = *jc.words;
+        size_t pos = jc.pos_next_word + 1;
+
+        std::string w = words[pos];
+        jc.word = w;
+
+
+        // Get the word from the dictionary
+        auto fword = d.findWord(w.c_str());
+        if (fword)
+        {
+            auto word_type = fword->type;
+            if (word_type == ForthWordType::VALUE) // value
+            {
+                auto data_address = d.get_data_ptr();
+
+                // Pop the value from the data stack
+                auto value = sm.popDS();
+
+                // Store the value into the address
+                *reinterpret_cast<int64_t*>(data_address) = value;
+            }
+            else if (word_type == ForthWordType::VARIABLE) // variable
+            {
                 // Load the address of the data (double indirect access)
                 auto variable_address = reinterpret_cast<uint64_t>(&fword->data);
-                a.mov(asmjit::x86::rax, variable_address); // Load the address of the address
 
-                // Load the address stored at the variable address
-                a.mov(asmjit::x86::rax, asmjit::x86::qword_ptr(asmjit::x86::rax));
 
-                // Pop the value from the data stack into rcx
-                popDS(asmjit::x86::rcx);
+                // Pop the value from the data stack
+                auto value = sm.popDS();
 
                 // Store the value into the address the variable points to
-                a.mov(asmjit::x86::qword_ptr(asmjit::x86::rax), asmjit::x86::rcx);
+                *reinterpret_cast<int64_t*>(variable_address) = value;
             }
 
             jc.pos_last_word = pos;
@@ -731,9 +833,8 @@ public:
             throw std::runtime_error("Unknown word in TO: " + w);
         }
 
-        logging=false;
+        logging = false;
         jc.loggingOFF();
-
     }
 
 
@@ -764,7 +865,7 @@ public:
         d.addWord(word.c_str(), nullptr, nullptr, nullptr, nullptr);
         d.setData(initialValue); // Set the value
         auto dataAddress = d.get_data_ptr();
-        d.setState(100); // value type
+        d.setType(ForthWordType::VALUE); // value type
 
         a.comment(" ; ----- fetch value");
         loadDS(dataAddress);
@@ -799,7 +900,7 @@ public:
         // Add the word to the dictionary as a value
         d.addWord(word.c_str(), nullptr, nullptr, nullptr, nullptr);
         d.setData(0); // Set the value
-        d.setState(101); // variable type
+        d.setType(ForthWordType::VARIABLE); // variable type
 
         auto dataAddress = d.get_data_ptr();
         // Generate prologue for function
@@ -1438,6 +1539,34 @@ public:
         a.comment(" ; Store new RS pointer to r14");
         a.mov(asmjit::x86::r14, newRsPointer);
     }
+
+    // store and fetch from memory
+
+
+    // Generates the Forth @ (fetch) operation
+    static void genAT()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genFetch: Assembler not initialized");
+        }
+
+        // Fetch the value at the address and push it onto the data stack
+        loadFromDS();
+
+    }
+
+    static void genStore()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genStore: Assembler not initialized");
+        }
+
+        // Store the value from the data stack into the specified address
+        storeFromDS();
+    }
+
 
 
     static void genDo()

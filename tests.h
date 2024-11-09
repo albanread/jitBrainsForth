@@ -31,34 +31,20 @@ void run_word(const std::string& word)
     }
 }
 
-void run_words(const std::string& words)
-{
-    std::vector<std::string> words_vec;
-    std::stringstream ss(words);
-    std::string word;
-    while (std::getline(ss, word, ' '))
-    {
-        if (word.empty()) continue;
-        words_vec.push_back(word);
-    }
-    for (auto& w : words_vec)
-    {
-        run_word(w);
-    }
-}
 
-void test_against_ds(const std::string& words, const uint64_t expected_top)
+inline void test_against_ds(const std::string& words, const uint64_t expected_top)
 {
     sm.resetDS(); // to get a clean stack
     std::cout << "Running: " << words << std::endl;
-    run_words(words);
+    interpreter(words);
+
     uint64_t result = sm.popDS();
     total_tests++;
     if (result != expected_top)
     {
         failed_tests++;
-        std::cout << "!! ---- Failed test: " << words << " Expected: " << expected_top << " but got: " << result <<
-            std::endl;
+        std::cout << "!!!! ---- Failed test: " << words << " Expected: " << expected_top << " but got: " << result <<
+          "<<<<< ---- Failed test !!!" <<  std::endl;
     }
     else
     {
@@ -68,9 +54,9 @@ void test_against_ds(const std::string& words, const uint64_t expected_top)
 }
 
 
-void testCompileAndRun(const std::string& wordName,
-                       const std::string& wordDefinition,
-                       const std::string& testString, int expectedResult)
+inline void testCompileAndRun(const std::string& wordName,
+                              const std::string& wordDefinition,
+                              const std::string& testString, int expectedResult)
 {
     compileWord(wordName, wordDefinition);
     test_against_ds(testString, expectedResult);
@@ -78,19 +64,19 @@ void testCompileAndRun(const std::string& wordName,
 }
 
 
-void testInterpreter(const std::string& test_name, const std::string& testString,
-                     const int expectedResult)
+inline void testInterpreter(const std::string& test_name, const std::string& testString,
+                            const int expectedResult)
 {
-    interpreter(testString); // Interpret the test string input
+
     uint64_t result = sm.popDS();
-    d.forgetLastWord();
+    interpreter(testString); // Interpret the test string input
     total_tests++;
     if (result != expectedResult)
     {
         failed_tests++;
         std::cout << "!! ---- Failed test: "
             << test_name << " Expected: "
-            << expectedResult
+            << expectedResult << " <---- Failed test !!!"
             << " but got: " << result <<
             std::endl;
     }
@@ -99,6 +85,7 @@ void testInterpreter(const std::string& test_name, const std::string& testString
         passed_tests++;
         std::cout << "Passed test: " << test_name << " = " << expectedResult << std::endl;
     }
+    d.forgetLastWord();
 }
 
 
@@ -185,6 +172,16 @@ void run_basic_tests()
 
     // Test >R followed by R@ and another R@ (should push 5 to RS, then copy it to DS twice, then we only care about the first value; result should be 5 on DS)
     test_against_ds("5 >R R@ R@ + ", 10);
+
+    // value and variable tests
+    test_against_ds(" variable fred 110 fred ! fred @ forget ", 110);
+
+    test_against_ds(" variable fred 120 to fred fred @   " , 120);
+
+    test_against_ds(" 77 value testval testval forget ", 77);
+
+    test_against_ds(" 77 value testval 99 to testval testval forget " , 99);
+
 
 
     // compiled word tests
@@ -300,7 +297,6 @@ void run_basic_tests()
 
                       " 9 10 6 testLocals3 ",
                       32);
-
 
                       // Print summary after running tests
                         std::cout << "\nTest results:" << std::endl;

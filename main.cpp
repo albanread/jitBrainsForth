@@ -1,14 +1,11 @@
 #include <iostream>
 
-
-#include "include/asmjit/asmjit.h"
 #include "JitContext.h"
 #include "ForthDictionary.h"
-#include "StackManager.h"
 #include "JitGenerator.h"
-
 #include "interpreter.h"
 #include "tests.h"
+#include "quit.h"
 
 
 JitGenerator& gen = JitGenerator::getInstance();
@@ -93,6 +90,9 @@ void add_words()
     d.addWord("SP@", JitGenerator::genSPFetch, JitGenerator::build_forth(JitGenerator::genSPFetch), nullptr, nullptr);
     d.addWord("SP!", JitGenerator::genSPStore, JitGenerator::build_forth(JitGenerator::genSPStore), nullptr, nullptr);
     d.addWord("RP!", JitGenerator::genRPStore, JitGenerator::build_forth(JitGenerator::genRPStore), nullptr, nullptr);
+    d.addWord("@", JitGenerator::genAT, JitGenerator::build_forth(JitGenerator::genAT), nullptr, nullptr);
+    d.addWord("!", JitGenerator::genStore, JitGenerator::build_forth(JitGenerator::genStore), nullptr, nullptr);
+
 
 
     // Add immediate functions for control flow words
@@ -113,18 +113,18 @@ void add_words()
     d.addWord("EXIT", nullptr, nullptr, JitGenerator::genExit, nullptr);
     d.addWord("LEAVE", nullptr, nullptr, JitGenerator::genLeave, nullptr);
     d.addWord("{", nullptr, nullptr, JitGenerator::gen_leftBrace, nullptr);
-    d.addWord("to", nullptr, nullptr, JitGenerator::genTO, nullptr);
-    d.setState(128);// flag word as also available to interpreter
-    d.addWord("value", nullptr, nullptr, JitGenerator::genImmediateValue, nullptr);
-    d.setState(128);// flag word as also available to interpreter
-    d.addWord("variable", nullptr, nullptr, JitGenerator::genImmediateVariable, nullptr);
-    d.setState(128);// flag word as also available to interpreter
+    d.addWord("to", nullptr, nullptr, JitGenerator::genTO, JitGenerator::execTO);
+
+    d.addWord("value", nullptr, nullptr, nullptr, JitGenerator::genImmediateValue);
+
+    d.addWord("variable", nullptr, nullptr, nullptr,  JitGenerator::genImmediateVariable);
+
     d.addWord(".", JitGenerator::genDot, JitGenerator::build_forth(JitGenerator::genDot), nullptr, nullptr);
     d.addWord("emit", JitGenerator::genEmit, JitGenerator::build_forth(JitGenerator::genEmit), nullptr, nullptr);
     d.addWord(".s", nullptr, JitGenerator::dotS, nullptr, nullptr);
     d.addWord("words", nullptr, JitGenerator::words, nullptr, nullptr);
-    d.addWord("see", nullptr, nullptr, JitGenerator::see, nullptr);
-    d.setState(128);
+    d.addWord("see", nullptr, nullptr, nullptr, JitGenerator::see);
+
 
     compileWord("space", "32 emit");
     compileWord("spaces", "0 do space loop");
@@ -141,15 +141,7 @@ int main()
     add_words();
     run_basic_tests();
     d.list_words();
+    Quit();
 
 
-    try
-    {
-        Quit();
-    }
-    catch (const std::runtime_error& e)
-    {
-        std::cerr << "Runtime error: " << e.what() << std::endl;
-    }
-    return 0;
 }

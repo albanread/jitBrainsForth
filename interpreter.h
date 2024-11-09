@@ -9,6 +9,7 @@
 #include "jitGenerator.h"
 #include "ForthDictionary.h"
 #include <unordered_set>
+#include <exception>
 
 // Traced words set
 inline std::unordered_set<std::string> tracedWords;
@@ -34,6 +35,7 @@ inline void clearR15()
         : "r15"
     );
 }
+
 inline void exec(ForthFunction f)
 {
     clearR15();
@@ -43,8 +45,10 @@ inline void exec(ForthFunction f)
 
 inline void compileWord(const std::string& wordName, const std::string& compileText)
 {
+    traceon("test");
 
-    //traceon("test");
+    logging = true;
+
     bool logging = tracedWords.find(wordName) != tracedWords.end();
 
     if (logging)
@@ -90,7 +94,7 @@ inline void compileWord(const std::string& wordName, const std::string& compileT
             if (fword->generatorFunc)
             {
                 if (logging) printf("Generating code for word: %s\n", word.c_str());
-               exec(fword->generatorFunc);
+                exec(fword->generatorFunc);
             }
             else if (fword->compiledFunc)
             {
@@ -172,7 +176,7 @@ inline void compileWord(const std::string& wordName, const std::string& compileT
 // interpreter calls words, or pushes numbers.
 inline void interpreter(const std::string& input)
 {
-    //bool logging = true;
+    bool logging = true;
     const auto words = split(input);
     if (logging) printf("Split words: ");
     for (const auto& word : words)
@@ -240,13 +244,13 @@ inline void interpreter(const std::string& input)
                     if (logging) printf("Calling word: %s\n", word.c_str());
                     exec(fword->compiledFunc);
                 }
-                else if (fword->immediateFunc && fword->state > 32)
+                else if (fword->terpFunc)
                 {
-                    if (logging) printf("Running immediate function of word: %s\n", word.c_str());
+                    if (logging) printf("Running  interpreter function of word: %s\n", word.c_str());
                     jc.pos_next_word = i;
                     jc.pos_last_word = 0;
                     jc.words = &words;
-                    exec(fword->immediateFunc);
+                    exec(fword->terpFunc);
                     if (jc.pos_last_word != 0)
                     {
                         i = jc.pos_last_word;
@@ -290,6 +294,7 @@ inline void interpreter(const std::string& input)
         ++i;
     }
 }
+
 inline void interactive_terminal()
 {
     std::string input;
@@ -305,11 +310,18 @@ inline void interactive_terminal()
 
         if (input == "QUIT" || input == "quit")
         {
+            sm.resetDS();
             break; // Exit the loop if the user enters QUIT
+        }
+        if ( input.empty())
+        {
+            continue;
         }
 
         accumulated_input += " " + input; // Accumulate input lines
+
         auto words = split(input);
+
         // Check if compiling is required based on the input
         for (const auto& word : words)
         {
@@ -341,28 +353,7 @@ inline void interactive_terminal()
     }
 }
 
-// named quit in honour of FORTH
-inline void Quit()
-{
-    while (true)
-    {
-        try
-        {
-            interactive_terminal();
-        }
-        catch (const std::runtime_error& e)
-        {
-            std::cerr << "Runtime error: " << e.what() << std::endl;
 
-            sm.resetDS();
-            jc.resetContext();
-        }
-        // reset on quit
 
-        sm.resetDS();
-        printf("\nreset by quit\n");
-
-    }
-}
 
 #endif //INTERPRETER_H

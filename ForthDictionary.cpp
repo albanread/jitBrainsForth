@@ -38,7 +38,7 @@ void ForthDictionary::addWord(const char* name,
                                               generatorFunc,
                                               compiledFunc,
                                               immediateFunc,
-                                              immediateFunc,
+                                              immTerpFunc,
                                               latestWord);
 
     // Correctly set the latest word to the new word
@@ -161,6 +161,11 @@ void ForthDictionary::setGeneratorFunction(ForthFunction func) const
     latestWord->generatorFunc = func;
 }
 
+void ForthDictionary::setTerpFunction(ForthFunction func) const
+{
+    latestWord->terpFunc = func;
+}
+
 void ForthDictionary::setState(uint8_t i)
 {
     latestWord->state = i;
@@ -187,12 +192,23 @@ uint64_t ForthDictionary::getData() const
     return latestWord->data;
 }
 
+// get and set type
+uint16_t ForthDictionary::getType() const
+{
+    return latestWord->type;
+}
+
+void ForthDictionary::setType(const uint16_t type) const
+{
+   latestWord->type = type;
+}
+
+
 // get pointer to data
-void* ForthDictionary::get_data_ptr()
+void* ForthDictionary::get_data_ptr() const
 {
     return &latestWord->data;
 }
-
 
 void ForthDictionary::displayWord(std::string name)
 {
@@ -206,14 +222,15 @@ void ForthDictionary::displayWord(std::string name)
     std::cout << "Name: " << word->name << std::endl;
 
     // display function addresses in hex
-    std::cout << "Compiled function: " << std::hex << word->compiledFunc << std::endl;
-    std::cout << "Immediate function: " << std::hex << word->immediateFunc << std::endl;
-    std::cout << "Generator function: " << std::hex << word->generatorFunc << std::endl;
+    std::cout << "Compiled function: " << std::hex << reinterpret_cast<uintptr_t>(word->compiledFunc) << std::endl;
+    std::cout << "Immediate function: " << std::hex << reinterpret_cast<uintptr_t>(word->immediateFunc) << std::endl;
+    std::cout << "Generator function: " << std::hex << reinterpret_cast<uintptr_t>(word->generatorFunc) << std::endl;
+    std::cout << "Interp function: " << std::hex << reinterpret_cast<uintptr_t>(word->generatorFunc) << std::endl;
     std::cout << "State: " << word->state << std::endl;
-    std::cout << "Data: " << word->data << std::endl;
+    std::cout << "Type: "  << word->type << std::endl;
+    std::cout << "Data: " << std::dec << word->data << std::endl;
     std::cout << "Link: " << word->link << std::endl << std::endl;
 }
-
 
 // List all words in the dictionary
 void ForthDictionary::list_words() const

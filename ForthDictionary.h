@@ -18,6 +18,16 @@ enum ForthWordState
     INTERPRET_ONLY = 1 << 2,
 };
 
+enum ForthWordType
+{
+    WORD = 0,
+    CONSTANT = 1 << 0,
+    VARIABLE = 1 << 1,
+    VALUE = 1 << 2,
+    STRING = 1 << 3
+};
+
+
 // Structure to represent a word in the dictionary
 struct ForthWord
 {
@@ -28,6 +38,8 @@ struct ForthWord
     ForthFunction terpFunc; // Immediate function pointer only used by interpreter
     ForthWord* link; // Pointer to the previous word in the dictionary
     uint8_t state; // State of the word
+    uint8_t reserved; // Reserved for future use
+    uint8_t type;
     uint64_t data; // New 64-bit value for storing data
 
     // Constructor to initialize a word
@@ -45,6 +57,8 @@ struct ForthWord
         std::strncpy(name, wordName, sizeof(name));
         name[sizeof(name) - 1] = '\0'; // Ensure null-termination
     }
+
+
 };
 
 // Class to manage the Forth dictionary
@@ -84,12 +98,15 @@ public:
     void setCompiledFunction(ForthFunction func) const;
     void setImmediateFunction(ForthFunction func) const;
     void setGeneratorFunction(ForthFunction func) const;
+    void setTerpFunction(ForthFunction func) const;
     void setState(uint8_t i);
     [[nodiscard]] uint8_t getState() const;
     void setName(std::string name);
     void setData(uint64_t d);
     uint64_t getData() const;
-    void* get_data_ptr();
+    uint16_t getType() const;
+    void setType(uint16_t type) const;
+    void* get_data_ptr() const;
     void displayWord(std::string name);
     void SetState(uint8_t i);
 

@@ -8,6 +8,7 @@
 #include <cctype>
 #include <bitset>
 #include <iomanip>
+#include <cstdint>
 
 extern "C" {
 inline void printDecimal(int64_t number)

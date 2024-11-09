@@ -19,6 +19,8 @@ add_executable(jitBrainsForth
         interpreter.h
         utility.h
         tests.h
+        quit.cpp
+
 
 )
 
