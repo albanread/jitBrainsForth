@@ -871,7 +871,7 @@ public:
         loadDS(dataAddress);
         a.ret();
 
-        ForthFunction compiledFunc = end();
+        ForthFunction compiledFunc = endGeneration();
         d.setCompiledFunction(compiledFunc);
         // Update position
         jc.pos_last_word = pos;
@@ -910,7 +910,7 @@ public:
         a.mov(asmjit::x86::rax, dataAddress);
         pushDS(asmjit::x86::rax);
         a.ret();
-        ForthFunction compiledFunc = end();
+        ForthFunction compiledFunc = endGeneration();
         d.setCompiledFunction(compiledFunc);
         // Update position
         jc.pos_last_word = pos;
@@ -1295,7 +1295,7 @@ public:
         pushDS(asmjit::x86::rax);
     }
 
-    static ForthFunction end()
+    static ForthFunction endGeneration()
     {
         if (!jc.assembler)
         {
@@ -1322,7 +1322,7 @@ public:
         genPrologue();
         fn();
         genEpilogue();
-        const ForthFunction new_func = end();
+        const ForthFunction new_func = endGeneration();
         return new_func;
     }
 

@@ -10,6 +10,9 @@
 
 JitGenerator& gen = JitGenerator::getInstance();
 
+StringInterner& interner = StringInterner::getInstance();
+
+
 // start to test some code generation
 
 
@@ -23,7 +26,7 @@ void add_words()
     d.addWord("4", JitGenerator::push4, JitGenerator::build_forth(JitGenerator::push4), nullptr, nullptr);
     d.addWord("8", JitGenerator::push8, JitGenerator::build_forth(JitGenerator::push8), nullptr, nullptr);
 
-    d.addWord("16", JitGenerator::push16, JitGenerator::build_forth(JitGenerator::push16), nullptr, nullptr);
+   // d.addWord("16", JitGenerator::push16, JitGenerator::build_forth(JitGenerator::push16), nullptr, nullptr);
 
     d.addWord("32", JitGenerator::push32, JitGenerator::build_forth(JitGenerator::push32), nullptr, nullptr);
     d.addWord("64", JitGenerator::push64, JitGenerator::build_forth(JitGenerator::push64), nullptr, nullptr);
@@ -137,7 +140,8 @@ int main()
 {
     jc.loggingOFF();
     add_words();
-    // run_basic_tests();
-    d.list_words();
-    Quit();
+    run_basic_tests();
+
+
+   // Quit();
 }

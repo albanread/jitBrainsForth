@@ -1,11 +1,13 @@
 cmake_minimum_required(VERSION 3.10)
-set(CMAKE_BUILD_TYPE Release)
+
 # Set the project name
 project(jitBrainsForth VERSION 1.0)
 
 # Specify the C++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
+
+set(CMAKE_CXX_FLAGS_RELEASE "-O0 -DNDEBUG")
 
 # Add the executable
 add_executable(jitBrainsForth
@@ -20,6 +22,7 @@ add_executable(jitBrainsForth
         utility.h
         tests.h
         quit.cpp
+        StringInterner.h
 
 
 )
