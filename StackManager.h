@@ -323,8 +323,8 @@ public:
             : "=r"(currentRsPtr) // output
         );
 
-        auto getStackValues = [](const uint64_t* top, const uint64_t* ptr) -> std::array<uint64_t, 4> {
-            std::array<uint64_t, 4> values = {0, 0, 0, 0};
+        auto getStackValues = [](const uint64_t* top, const uint64_t* ptr) -> std::array<int64_t, 4> {
+            std::array<int64_t, 4> values = {0, 0, 0, 0};
             int depth = top - ptr;
             for (int i = 0; i < 4 && i < depth; ++i)
             {
