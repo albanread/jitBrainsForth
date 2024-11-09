@@ -387,7 +387,6 @@ public:
     }
 
 
-
     static void pushRS(asmjit::x86::Gp reg)
     {
         if (!jc.assembler)
@@ -916,6 +915,60 @@ public:
         jc.pos_last_word = pos;
         //logging = false;
         //jc.loggingOFF();
+    }
+
+
+    static const char* stripPointer(const std::string& token)
+    {
+        std::string prefix = "sPtr_";
+        if (token.compare(0, prefix.size(), prefix) == 0)
+        {
+            // Extract the numeric part after the prefix
+            std::string numberStr = token.substr(prefix.size());
+            std::uintptr_t address = 0;
+
+            // Convert the numeric string to an unsigned integer
+            std::istringstream iss(numberStr);
+            iss >> address;
+
+            // Return the address as a pointer to const char
+            return reinterpret_cast<const char*>(address);
+        }
+
+        // Return nullptr if the prefix does not match
+        return nullptr;
+    }
+
+
+    static void genImmediateDotQuote()
+    {
+        //logging = true;
+        //jc.loggingON();
+        const auto& words = *jc.words;
+        size_t pos = jc.pos_next_word + 1;
+        std::string word = words[pos];
+        jc.word = word;
+        printf("genImmediateDotQuote: %s\n", word.c_str());
+        auto address = stripPointer(word);
+
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("entryFunction: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        commentWithWord(" ; ----- .\" displaying text ");
+
+        // put parameter in argument
+        a.mov(asmjit::x86::rcx, address);
+        // Allocate space for the shadow space
+        a.sub(asmjit::x86::rsp, 40);
+        // call puts
+        a.call(puts);
+        // restore shadow space
+        a.add(asmjit::x86::rsp, 40);
+
+        jc.pos_last_word = pos;
     }
 
 
@@ -1552,7 +1605,6 @@ public:
 
         // Fetch the value at the address and push it onto the data stack
         loadFromDS();
-
     }
 
     static void genStore()
@@ -1565,7 +1617,6 @@ public:
         // Store the value from the data stack into the specified address
         storeFromDS();
     }
-
 
 
     static void genDo()
