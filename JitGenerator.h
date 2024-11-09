@@ -1333,7 +1333,6 @@ public:
             throw std::runtime_error("gen_call: Assembler not initialized");
         }
         auto& a = *jc.assembler;
-        exitFunction();
 
         a.comment(" ; ----- gen_call");
         a.mov(asmjit::x86::rax, fn);

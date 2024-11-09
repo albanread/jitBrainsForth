@@ -69,7 +69,7 @@ inline void testInterpreter(const std::string& test_name, const std::string& tes
 {
 
     uint64_t result = sm.popDS();
-    interpreter(testString); // Interpret the test string input
+     interpreter(testString); // Interpret the test string input
     total_tests++;
     if (result != expectedResult)
     {

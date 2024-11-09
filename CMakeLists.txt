@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-
+set(CMAKE_BUILD_TYPE Release)
 # Set the project name
 project(jitBrainsForth VERSION 1.0)
 

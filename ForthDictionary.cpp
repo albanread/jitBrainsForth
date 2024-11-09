@@ -26,7 +26,7 @@ void ForthDictionary::addWord(const char* name,
 {
     std::string lower_name = to_lower(name);
 
-    std::cout << "Added word " << lower_name << std::endl;
+   //  std::cout << "Added word " << lower_name << std::endl;
 
     if (currentPos + sizeof(ForthWord) > memory.size())
     {

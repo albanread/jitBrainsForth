@@ -28,19 +28,22 @@ public:
 
     void resetContext()
     {
-        // Reset and reinitialize the code holder
-        code.reset();
-        code.init(rt.environment());
-
-        // Recreate the assembler with the new code holder
-        //delete assembler;
-        assembler = new asmjit::x86::Assembler(&code);
-        if (logging)
+        if (auto_reset)
         {
-            code.setLogger(&logger);
-        }
+            // Reset and reinitialize the code holder
+            code.reset();
+            code.init(rt.environment());
+            //
+            // // Recreate the assembler with the new code holder
+            // //delete assembler;
+            assembler = new asmjit::x86::Assembler(&code);
+            if (logging)
+            {
+                code.setLogger(&logger);
+            }
 
-        if (logging) std::cout << "AsmJit context has been reset and reinitialized." << std::endl;
+            if (logging) std::cout << "AsmJit context has been reset and reinitialized." << std::endl;
+        }
     }
 
     // Example method
@@ -61,6 +64,16 @@ public:
         logging = false;
         code.setLogger(nullptr); // Disable logging
 
+    }
+
+    void resetON()
+    {
+        auto_reset = true;
+    }
+
+    void resetOFF()
+    {
+        auto_reset = false;
     }
 
 private:
@@ -135,12 +148,14 @@ public:
     void* ptr_A;
     void* ptr_B;
     bool logging = false;
-
+    bool auto_reset = true;
     // these are for immediate words that read the input stream
     size_t pos_next_word;
     size_t pos_last_word;
     const std::vector<std::string>* words;
     std::string word;
+
+
 };
 
 #endif // JITCONTEXT_H
