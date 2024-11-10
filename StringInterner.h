@@ -158,4 +158,5 @@ private:
     StringStorage storage; // Storage for the interned strings
 };
 
+
 #endif // STRINGINTERNER_H
