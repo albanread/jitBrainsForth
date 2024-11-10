@@ -3,9 +3,6 @@
 
 #include <iostream>
 #include "quit.h"
-
-
-
 #include "interpreter.h"
 
 // Define the WINAPI macro
@@ -38,6 +35,8 @@ extern "C" {
     typedef NTSTATUS(WINAPI* PEXCEPTION_FILTER)(PEXCEPTION_POINTERS ExceptionInfo);
     PVOID WINAPI AddVectoredExceptionHandler(ULONG First, PEXCEPTION_FILTER Handler);
     ULONG WINAPI RemoveVectoredExceptionHandler(PVOID Handle);
+    short GetAsyncKeyState(int vKey);
+
 }
 
 
@@ -59,6 +58,17 @@ LONG WINAPI VectoredHandler(PEXCEPTION_POINTERS ExceptionInfo)
     }
     return EXCEPTION_CONTINUE_SEARCH;
 }
+
+#define VK_ESCAPE 0x1B
+bool escapePressed()
+{
+    if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) {
+        return true;
+    }
+    return false;
+}
+
+
 
 
 void Quit()

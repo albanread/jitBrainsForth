@@ -106,6 +106,27 @@ public:
         auto_reset = false;
     }
 
+    void loopCheckON()
+    {
+        optLoopCheck = true;
+    }
+
+    void loopCheckOFF()
+    {
+        optLoopCheck = false;
+    }
+
+    void overflowCheckON()
+    {
+        optOverflowCheck = true;
+    }
+
+    void overflowCheckOFF()
+    {
+        optOverflowCheck = false;
+    }
+
+
 private:
     // Private constructor to prevent instantiation
     JitContext() :
@@ -184,6 +205,13 @@ public:
     size_t pos_last_word;
     const std::vector<std::string>* words;
     std::string word;
+
+    // these are compiler options
+
+    bool optLoopCheck = false;
+    bool optOverflowCheck = false;
+
+
 };
 
 #endif // JITCONTEXT_H

@@ -403,9 +403,37 @@ inline void interactive_terminal()
                 }
                 else
                 {
-                    std::cerr << "Error: Expected argument after " << command << std::endl;
+                    std::cerr << "Error: Expected name of word to trace after " << command << std::endl;
                 }
                 continue; // Process next word
+            }
+            // add *optLoopCheckOn takes the following word as ON, OFF
+            if (word == "*LOOPCHECK" || word == "*loopcheck")
+            {
+                // get next word
+                ++it;
+                if (it != words.end())
+                {
+                    const auto& nextWord = *it;
+                    if (nextWord == "ON" || nextWord == "on")
+                    {
+                        // display loop checking on
+                        std::cout << "Loop checking ON" << std::endl;
+                        jc.loopCheckON();
+                    }
+                    else if (nextWord == "OFF" || nextWord == "off")
+                    {
+                        // display loop checking off
+                        std::cout << "Loop checking OFF" << std::endl;
+                        jc.loopCheckOFF();
+                    }
+                    else
+                    {
+                        std::cerr << "Error: Expected argument (on,off) after " << word << std::endl;
+                    }
+                    // Remove `command` and `nextWord` from accumulated_input
+                    accumulated_input.erase(accumulated_input.find(word), word.length() + nextWord.length() + 2);
+                }
             }
 
             if (word == ":")

@@ -10,6 +10,7 @@
 #include <stack>
 #include "StackManager.h"
 #include <variant>
+#include "quit.h"
 
 const int INVALID_OFFSET = -9999;
 
@@ -1768,6 +1769,8 @@ public:
         a.comment(" ; ----- gen_loop");
         a.nop();
 
+        genLeaveLoopOnEscapeKey(a, loopLabel);
+
         asmjit::x86::Gp currentIndex = asmjit::x86::rcx; // Current index
         asmjit::x86::Gp limit = asmjit::x86::rdx; // Limit
         a.nop(); // no-op
@@ -1790,6 +1793,7 @@ public:
 
         a.comment(" ; Jump to loop start if still looping.");
         // Jump to loop start if current index is less than the limit
+
         a.jl(loopLabel.doLabel);
 
         a.comment(" ; ----- LEAVE and loop label");
@@ -1832,6 +1836,7 @@ public:
         asmjit::x86::Gp limit = asmjit::x86::rdx; // Limit
         asmjit::x86::Gp increment = asmjit::x86::rsi; // Increment value
 
+        genLeaveLoopOnEscapeKey(a, loopLabel);
         a.nop(); // no-op
 
         // Pop current index and limit from return stack
@@ -2070,6 +2075,49 @@ public:
     }
 
 
+    static void genLeaveAgainOnEscapeKey(asmjit::x86::Assembler& a, const BeginAgainRepeatUntilLabel& beginLabels)
+    {
+        // optionally generate code to check for escape key pressed
+        if (jc.optLoopCheck)
+        {
+            // if escape key pressed leave loop.
+            // shadow stack
+            a.comment("; -- check for escape key and leave if pressed");
+            a.push(asmjit::x86::rax);
+            a.sub(asmjit::x86::rsp, 40);
+            a.call(escapePressed);
+            a.add(asmjit::x86::rsp, 40);
+            // compare rax with 0
+            a.cmp(asmjit::x86::rax, 0);
+            a.pop(asmjit::x86::rax);
+            a.comment("; jump to leave label");
+            a.jne(beginLabels.leaveLabel);
+        }
+    }
+
+
+
+    static void genLeaveLoopOnEscapeKey(asmjit::x86::Assembler& a, const DoLoopLabel& l)
+    {
+        // optionally generate code to check for escape key pressed
+        if (jc.optLoopCheck)
+        {
+            // if escape key pressed leave loop.
+            // shadow stack
+            a.comment("; -- check for escape key and leave if pressed");
+            a.push(asmjit::x86::rax);
+            a.sub(asmjit::x86::rsp, 40);
+            a.call(escapePressed);
+            a.add(asmjit::x86::rsp, 40);
+            // compare rax with 0
+            a.cmp(asmjit::x86::rax, 0);
+            a.pop(asmjit::x86::rax);
+            a.comment("; jump to leave label");
+            a.jne(l.leaveLabel);
+        }
+    }
+
+
     static void genAgain()
     {
         if (!jc.assembler)
@@ -2089,6 +2137,7 @@ public:
         auto beginLabels = std::get<BeginAgainRepeatUntilLabel>(loopStack.top().label);
         loopStack.pop();
 
+        genLeaveAgainOnEscapeKey(a, beginLabels);
         beginLabels.againLabel = a.newLabel();
         a.jmp(beginLabels.beginLabel);
 
@@ -2124,6 +2173,7 @@ public:
         auto beginLabels = std::get<BeginAgainRepeatUntilLabel>(loopStack.top().label);
         loopStack.pop();
 
+        genLeaveAgainOnEscapeKey(a, beginLabels);
         beginLabels.repeatLabel = a.newLabel();
         a.jmp(beginLabels.beginLabel);
         a.bind(beginLabels.repeatLabel);
@@ -2156,8 +2206,8 @@ public:
         const auto& beginLabels = std::get<BeginAgainRepeatUntilLabel>(loopStack.top().label);
 
         asmjit::x86::Gp topOfStack = asmjit::x86::rax;
-
         popDS(topOfStack);
+        genLeaveAgainOnEscapeKey(a, beginLabels);
         a.comment(" ; Jump back to beginLabel if top of stack is zero");
         a.test(topOfStack, topOfStack);
         a.jz(beginLabels.beginLabel);
