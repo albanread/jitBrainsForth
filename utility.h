@@ -31,7 +31,7 @@ inline void printUnsignedHex(uint64_t number)
 inline void printHex(int64_t number)
 {
     std::ostringstream oss;
-    oss << "0x" << std::hex;
+    oss << "0x" <<  std::hex << number;
     std::cout << oss.str() << std::endl;
 }
 

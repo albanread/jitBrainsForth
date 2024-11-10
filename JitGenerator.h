@@ -1410,12 +1410,32 @@ public:
         popDS(asmjit::x86::rcx);
         preserveStackPointers();
         // Allocate space for the shadow space (32 bytes).
-        a.sub(asmjit::x86::rsp, 32);
+        a.sub(asmjit::x86::rsp, 40);
         a.call(asmjit::imm(reinterpret_cast<void*>(printDecimal)));
         // Restore stack.
-        a.add(asmjit::x86::rsp, 32);
+        a.add(asmjit::x86::rsp, 40);
         restoreStackPointers();
     }
+
+    static void genHDot()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("gen_emit: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- gen_dot");
+        popDS(asmjit::x86::rcx);
+        preserveStackPointers();
+        // Allocate space for the shadow space (32 bytes).
+        a.sub(asmjit::x86::rsp, 40);
+        a.call(asmjit::imm(reinterpret_cast<void*>(printUnsignedHex)));
+        // Restore stack.
+        a.add(asmjit::x86::rsp, 40);
+        restoreStackPointers();
+    }
+
 
 
     static void prim_depth()
