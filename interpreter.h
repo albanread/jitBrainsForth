@@ -71,16 +71,12 @@ inline std::string scanForLiterals(const std::string& compileText) {
 
 inline void compileWord(const std::string& wordName, const std::string& compileText)
 {
-
-    std::string newCompileText = scanForLiterals(compileText);
-
     bool logging = tracedWords.find(wordName) != tracedWords.end();
 
     if (logging)
     {
         printf("\nCompiling word: [%s]\n", wordName.c_str());
     }
-
 
     JitContext& jc = JitContext::getInstance();
     jc.resetContext();
@@ -96,7 +92,7 @@ inline void compileWord(const std::string& wordName, const std::string& compileT
 
     // Start compiling the new word
     JitGenerator::genPrologue();
-    const auto words = split(newCompileText);
+    const auto words = split(compileText);
 
     if (logging) printf("Split words: ");
     for (const auto& word : words)
@@ -137,6 +133,7 @@ inline void compileWord(const std::string& wordName, const std::string& compileT
                 {
                     i = jc.pos_last_word;
                 }
+                if (logging)  printf("next word is %s", words[i].c_str());
             }
             else
             {
@@ -286,6 +283,7 @@ inline void interpreter(const std::string& input)
                     {
                         i = jc.pos_last_word;
                     }
+                    if (logging)  printf("next word is %s", words[i].c_str());
                 }
                 else
                 {
@@ -432,6 +430,38 @@ inline void interactive_terminal()
                     // Remove `command` and `nextWord` from accumulated_input
                     accumulated_input.erase(accumulated_input.find(word), word.length() + nextWord.length() + 2);
                 }
+            }
+
+            if (word == "*dump" || word == "*DUMP") {
+                // Get the next word
+                ++it;
+                if (it != words.end()) {
+                    const auto& addrStr = *it;
+                    uintptr_t address;
+
+                    try {
+                        if (addrStr.find("0x") != std::string::npos || addrStr.find("0X") != std::string::npos) {
+                            // Address is in hexadecimal
+                            address = std::stoull(addrStr, nullptr, 16);
+                        } else {
+                            // Address is in decimal
+                            address = std::stoull(addrStr, nullptr, 10);
+                        }
+
+                        // Cast the address to a void pointer and call dump
+                        dump(reinterpret_cast<void*>(address));
+                    } catch (const std::invalid_argument& e) {
+                        std::cerr << "Error: Invalid address format" << std::endl;
+                                    } catch (const std::out_of_range& e) {
+                        std::cerr << "Error: Address out of range" << std::endl;
+                    }
+
+                    // Remove `command` and `nextWord` from accumulated_input
+                    accumulated_input.erase(accumulated_input.find(word), word.length() + addrStr.length() + 2);
+                } else {
+                    std::cerr << "Error: Expected address after " << word << std::endl;
+                }
+                continue; // Process next word
             }
 
             if (word == ":")

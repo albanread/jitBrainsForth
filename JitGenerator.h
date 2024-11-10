@@ -140,6 +140,12 @@ inline extern void prim_emit(const uint64_t a)
     std::cout << c;
 }
 
+inline extern void prints(const char* str) {
+    fputs(str, stdout);
+    fflush(stdout);
+}
+
+
 static bool logging = false;
 
 // using ExecFunc = void (*)(ForthFunction);
@@ -807,8 +813,6 @@ public:
     // in compile mode only.
     static void genTO()
     {
-        logging = true;
-        jc.loggingON();
 
         const auto& words = *jc.words;
         size_t pos = jc.pos_next_word + 1;
@@ -889,8 +893,7 @@ public:
     // in interpret mode only.
     static void execTO()
     {
-        logging = true;
-        jc.loggingON();
+
 
         const auto& words = *jc.words;
         size_t pos = jc.pos_next_word + 1;
@@ -943,8 +946,7 @@ public:
     // 10 VALUE fred
     static void genImmediateValue()
     {
-        //logging = true;
-        //jc.loggingON();
+
         const auto& words = *jc.words;
         size_t pos = jc.pos_next_word + 1;
 
@@ -985,8 +987,7 @@ public:
     // s" literal string" VALUE fred
     static void genImmediateStringValue()
     {
-        //logging = true;
-        //jc.loggingON();
+
         const auto& words = *jc.words;
         size_t pos = jc.pos_next_word + 1;
 
@@ -1025,8 +1026,7 @@ public:
 
     static void genImmediateVariable()
     {
-        //logging = true;
-        //jc.loggingON();
+
         const auto& words = *jc.words;
         size_t pos = jc.pos_next_word + 1;
 
@@ -1057,8 +1057,6 @@ public:
         d.setCompiledFunction(compiledFunc);
         // Update position
         jc.pos_last_word = pos;
-        //logging = false;
-        //jc.loggingOFF();
     }
 
 
@@ -1103,13 +1101,15 @@ public:
         commentWithWord(" ; ----- .\" displaying text ");
 
         // put parameter in argument
+
         a.mov(asmjit::x86::rcx, address);
         // Allocate space for the shadow space
         a.sub(asmjit::x86::rsp, 40);
         // call puts
-        a.call(puts);
+        a.call(prints);
         // restore shadow space
         a.add(asmjit::x86::rsp, 40);
+
 
         jc.pos_last_word = pos;
     }

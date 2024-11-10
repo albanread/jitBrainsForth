@@ -93,4 +93,39 @@ inline std::string to_lower(const std::string& s)
     return result;
 }
 
+inline void dump(const void* address) {
+    const unsigned char* addr = static_cast<const unsigned char*>(address);
+    size_t length = 32;
+
+    for (size_t i = 0; i < length; i += 16) {
+        // Print the memory address
+        std::cout << std::setw(8) << std::setfill('0') << std::hex << reinterpret_cast<uintptr_t>(addr + i) << ": ";
+
+        // Print the hexadecimal representation
+        for (size_t j = 0; j < 16; ++j) {
+            if (i + j < length) {
+                std::cout << std::setw(2) << static_cast<int>(addr[i + j]) << " ";
+            } else {
+                std::cout << "   ";
+            }
+        }
+
+        // Print the ASCII representation
+        std::cout << " ";
+        for (size_t j = 0; j < 16; ++j) {
+            if (i + j < length) {
+                char ch = static_cast<char>(addr[i + j]);
+                if (std::isprint(ch)) {
+                    std::cout << ch;
+                } else {
+                    std::cout << ".";
+                }
+            }
+        }
+
+        std::cout << std::endl;
+    }
+}
+
+
 #endif //UTILITY_H
