@@ -7,14 +7,10 @@
 #include <regex>
 #include <sstream>
 #include "utility.h"
-#include "jitGenerator.h"
 #include "ForthDictionary.h"
 #include <unordered_set>
 #include "StringInterner.h"
-
-
-
-inline StringInterner& strIntern = StringInterner::getInstance();
+#include "JitContext.h"
 
 // Traced words set
 inline std::unordered_set<std::string> tracedWords;
@@ -58,7 +54,7 @@ inline std::string scanForLiterals(const std::string& compileText) {
         std::string literalStart = match[1].str();
         std::string literalString = match[2].str();
 
-        const char* internedPtr = interner.intern(literalString);
+        auto internedPtr = interner.intern(literalString);
         std::ostringstream replacementWord;
         replacementWord << "sPtr_" << reinterpret_cast<std::uintptr_t>(internedPtr);
 
@@ -83,6 +79,7 @@ inline void compileWord(const std::string& wordName, const std::string& compileT
     {
         printf("\nCompiling word: [%s]\n", wordName.c_str());
     }
+
 
     JitContext& jc = JitContext::getInstance();
     jc.resetContext();

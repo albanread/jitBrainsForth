@@ -10,7 +10,12 @@
 #include <stack>
 #include "StackManager.h"
 #include <variant>
+
+#include "interpreter.h"
 #include "quit.h"
+#include "StringInterner.h"
+
+StringInterner* strIntern = nullptr;
 
 const int INVALID_OFFSET = -9999;
 
@@ -416,6 +421,104 @@ public:
         a.nop();
         a.mov(reg, asmjit::x86::qword_ptr(asmjit::x86::r14));
         a.add(asmjit::x86::r14, 8);
+    }
+
+    static void pushSS(asmjit::x86::Gp reg)
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("gen_prologue: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- pushSS");
+        a.comment(" ; save value to the string stack (r12)");
+        a.sub(asmjit::x86::r12, 8);
+        a.mov(asmjit::x86::qword_ptr(asmjit::x86::r12), reg);
+    }
+
+    static void popSS(asmjit::x86::Gp reg)
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("gen_prologue: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- popSS");
+        a.comment(" ; fetch value from the string stack (r12)");
+        a.nop();
+        a.mov(reg, asmjit::x86::qword_ptr(asmjit::x86::r12));
+        a.add(asmjit::x86::r12, 8);
+    }
+
+
+    static void loadSS(void* dataAddress)
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("gen_prologue: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        // Load the address into rax
+        a.mov(asmjit::x86::rax, dataAddress);
+
+        // Dereference the address to get the value and store it into rax
+        a.mov(asmjit::x86::rax, asmjit::x86::ptr(asmjit::x86::rax));
+
+        // Push the value onto the string stack
+        pushSS(asmjit::x86::rax);
+    }
+
+
+    static void loadFromSS()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("gen_prologue: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        // Load the address into rax
+        popSS(asmjit::x86::rax);
+        // Dereference the address to get the value and store it into rax
+        a.mov(asmjit::x86::rax, asmjit::x86::ptr(asmjit::x86::rax));
+        // Push the value onto the string stack
+        pushSS(asmjit::x86::rax);
+    }
+
+    static void storeSS(void* dataAddress)
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("gen_prologue: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        // Pop the value from the string stack into rax
+        popSS(asmjit::x86::rax);
+
+        // Load the address into rcx
+        a.mov(asmjit::x86::rcx, dataAddress);
+        // Store the value from rax into the address pointed to by rcx
+        a.mov(asmjit::x86::qword_ptr(asmjit::x86::rcx), asmjit::x86::rax);
+    }
+
+
+    static void storeFromSS()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("gen_prologue: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        // Pop the value from the string stack into rax
+        popSS(asmjit::x86::rcx); // address
+        popSS(asmjit::x86::rax); // data
+        // Store the value from rax into the address pointed to by rcx
+        a.mov(asmjit::x86::qword_ptr(asmjit::x86::rcx), asmjit::x86::rax);
     }
 
 
@@ -880,7 +983,6 @@ public:
     }
 
 
-
     // immediate value, runs when value is called.
     // s" literal string" VALUE fred
     static void genImmediateStringValue()
@@ -896,7 +998,7 @@ public:
 
         // Pop the initial value from the data stack
         auto initialValue = sm.popDS();
-        //printf("initialValue: %llu\n", initialValue);
+        printf("initialValue: %llu\n", initialValue);
         jc.resetContext();
         if (!jc.assembler)
         {
@@ -911,7 +1013,7 @@ public:
         d.setType(ForthWordType::STRING); // value type
 
         a.comment(" ; ----- fetch value");
-        loadDS(dataAddress);
+        loadSS(dataAddress);
         a.ret();
 
         ForthFunction compiledFunc = endGeneration();
@@ -921,8 +1023,6 @@ public:
         //logging = false;
         //jc.loggingOFF();
     }
-
-
 
 
     static void genImmediateVariable()
@@ -964,7 +1064,7 @@ public:
     }
 
 
-    static const char* stripPointer(const std::string& token)
+    static size_t stripIndex(const std::string& token)
     {
         std::string prefix = "sPtr_";
         if (token.compare(0, prefix.size(), prefix) == 0)
@@ -978,11 +1078,11 @@ public:
             iss >> address;
 
             // Return the address as a pointer to const char
-            return reinterpret_cast<const char*>(address);
+            return address;
         }
 
         // Return nullptr if the prefix does not match
-        return nullptr;
+        return -1;
     }
 
     // supports ."
@@ -993,7 +1093,8 @@ public:
         std::string word = words[pos];
         jc.word = word;
         if (logging) printf("genImmediateDotQuote: %s\n", word.c_str());
-        auto address = stripPointer(word);
+        const auto index = stripIndex(word);
+        auto address = strIntern.getStringAddress(index);
 
         if (!jc.assembler)
         {
@@ -1023,7 +1124,7 @@ public:
         std::string word = words[pos];
         jc.word = word;
         printf("genImmediateSQuote: %s\n", word.c_str());
-        auto address = stripPointer(word);
+        auto address = stripIndex(word);
 
         if (!jc.assembler)
         {
@@ -1033,7 +1134,7 @@ public:
         auto& a = *jc.assembler;
         commentWithWord(" ; ----- s\" stacking text ");
         a.mov(asmjit::x86::rcx, address);
-        pushDS(asmjit::x86::rcx);
+        pushSS(asmjit::x86::rcx);
 
         jc.pos_last_word = pos;
     }
@@ -1046,12 +1147,10 @@ public:
         std::string word = words[pos];
         jc.word = word;
         printf("genImmediateSQuote: %s\n", word.c_str());
-        auto address = stripPointer(word);
-        sm.pushDS(reinterpret_cast<uint64_t>(address));
+        auto address = stripIndex(word);
+        sm.pushSS(reinterpret_cast<uint64_t>(address));
         jc.pos_last_word = pos;
     }
-
-
 
 
     //
@@ -1123,8 +1222,6 @@ public:
         }
 
         auto& a = *jc.assembler;
-
-
         jc.epilogueLabel = a.newLabel();
         a.bind(jc.epilogueLabel);
 
@@ -2094,7 +2191,6 @@ public:
             a.jne(beginLabels.leaveLabel);
         }
     }
-
 
 
     static void genLeaveLoopOnEscapeKey(asmjit::x86::Assembler& a, const DoLoopLabel& l)

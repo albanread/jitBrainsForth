@@ -9,7 +9,6 @@
 
 
 JitGenerator& gen = JitGenerator::getInstance();
-
 StringInterner& interner = StringInterner::getInstance();
 
 
