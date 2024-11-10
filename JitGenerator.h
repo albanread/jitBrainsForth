@@ -140,7 +140,8 @@ inline extern void prim_emit(const uint64_t a)
     std::cout << c;
 }
 
-inline extern void prints(const char* str) {
+inline extern void prints(const char* str)
+{
     fputs(str, stdout);
     fflush(stdout);
 }
@@ -813,7 +814,6 @@ public:
     // in compile mode only.
     static void genTO()
     {
-
         const auto& words = *jc.words;
         size_t pos = jc.pos_next_word + 1;
 
@@ -893,8 +893,6 @@ public:
     // in interpret mode only.
     static void execTO()
     {
-
-
         const auto& words = *jc.words;
         size_t pos = jc.pos_next_word + 1;
 
@@ -946,7 +944,6 @@ public:
     // 10 VALUE fred
     static void genImmediateValue()
     {
-
         const auto& words = *jc.words;
         size_t pos = jc.pos_next_word + 1;
 
@@ -987,7 +984,6 @@ public:
     // s" literal string" VALUE fred
     static void genImmediateStringValue()
     {
-
         const auto& words = *jc.words;
         size_t pos = jc.pos_next_word + 1;
 
@@ -1026,7 +1022,6 @@ public:
 
     static void genImmediateVariable()
     {
-
         const auto& words = *jc.words;
         size_t pos = jc.pos_next_word + 1;
 
@@ -1136,6 +1131,30 @@ public:
 
         jc.pos_last_word = pos;
     }
+
+    // supports sprint
+    // takes index from string stack turns to address and prints at run time.
+    static void genPrint()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("entryFunction: Assembler not initialized");
+        }
+        auto& a = *jc.assembler;
+        commentWithWord(" ; ----- sprint prints string ");
+        popSS(asmjit::x86::rcx);
+        a.sub(asmjit::x86::rsp, 40);
+        a.call(prim_sindex);
+        a.add(asmjit::x86::rsp, 40);
+        a.mov(asmjit::x86::rcx, asmjit::x86::rax);
+        // Allocate space for the shadow space
+        a.sub(asmjit::x86::rsp, 40);
+        // call puts
+        a.call(prints);
+        // restore shadow space
+        a.add(asmjit::x86::rsp, 40);
+    }
+
 
     // support s" for interpreter immediate execution.
     static void genTerpImmediateSQuote()
@@ -1369,6 +1388,12 @@ public:
         d.forgetLastWord();
     }
 
+    static void* prim_sindex(size_t index)
+    {
+        return strIntern.getStringAddress(index);
+    }
+
+
     static void genForget()
     {
         if (!jc.assembler)
@@ -1435,7 +1460,6 @@ public:
         a.add(asmjit::x86::rsp, 40);
         restoreStackPointers();
     }
-
 
 
     static void prim_depth()
