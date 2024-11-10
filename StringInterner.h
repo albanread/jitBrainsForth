@@ -142,6 +142,11 @@ public:
         }
     }
 
+    size_t StringCat(size_t index1, size_t index2) {
+        std::string newStr = getString(index1) + getString(index2);
+        return intern(newStr);
+    }
+
 
 private:
     StringInterner() = default; // Private constructor for singleton.
