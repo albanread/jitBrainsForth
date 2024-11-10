@@ -10,12 +10,10 @@
 #include <stack>
 #include "StackManager.h"
 #include <variant>
-
-#include "interpreter.h"
-#include "quit.h"
 #include "StringInterner.h"
+#include "Quit.h"
 
-StringInterner* strIntern = nullptr;
+inline StringInterner& strIntern = StringInterner::getInstance();
 
 const int INVALID_OFFSET = -9999;
 
@@ -997,7 +995,7 @@ public:
 
 
         // Pop the initial value from the data stack
-        auto initialValue = sm.popDS();
+        auto initialValue = sm.popSS();
         printf("initialValue: %llu\n", initialValue);
         jc.resetContext();
         if (!jc.assembler)

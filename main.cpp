@@ -129,6 +129,9 @@ void add_words()
     d.addWord("DEPTH", JitGenerator::genDepth2, JitGenerator::build_forth(JitGenerator::genDepth2), nullptr, nullptr);
     d.addWord("FORGET", JitGenerator::genForget, JitGenerator::build_forth(JitGenerator::genForget), nullptr, nullptr);
     d.addWord(".", JitGenerator::genDot, JitGenerator::build_forth(JitGenerator::genDot), nullptr, nullptr);
+    d.addWord("h.", JitGenerator::genDot, JitGenerator::build_forth(JitGenerator::genDot), nullptr, nullptr);
+
+
     d.addWord("emit", JitGenerator::genEmit, JitGenerator::build_forth(JitGenerator::genEmit), nullptr, nullptr);
     d.addWord(".s", nullptr, JitGenerator::dotS, nullptr, nullptr);
     d.addWord("words", nullptr, JitGenerator::words, nullptr, nullptr);

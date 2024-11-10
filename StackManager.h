@@ -432,9 +432,9 @@ public:
                   << rsValues[2] << "\t" << rsValues[3] << "\n";
 
         std::cout << "\t" << getSSDepth() << "\t"   << "\tSS (1)\tSS (2)\tSS (3)\tSS (4)\tSS (5)\tSS (6)\tSS (7)\tSS (8)\n";
-        std::cout << "\t" << "\t" << "\t" << ssValues[0] << "\t" << ssValues[1] << "\t" << ssValues[2] << "\t" << ssValues[3] << "\t"
-                  << ssValues[4] << "\t" << ssValues[5] << "\t" << ssValues[6] << "\t" << ssValues[7] << "\n"
-                  << std::endl;
+        std::cout << "\t" << "\t" << "\t[" << ssValues[0] << "]\t[" << ssValues[1] << "]\t[" << ssValues[2] << "]\t[" << ssValues[3] << "]\t"
+               << "[" << ssValues[4] << "]\t[" << ssValues[5] << "]\t[" << ssValues[6] << "]\t[" << ssValues[7] << "]\n"
+               << std::endl;
     }
 
 private:

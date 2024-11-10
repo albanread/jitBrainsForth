@@ -11,6 +11,7 @@
 #include <unordered_set>
 #include "StringInterner.h"
 #include "JitContext.h"
+#include "JitGenerator.h"
 
 // Traced words set
 inline std::unordered_set<std::string> tracedWords;
