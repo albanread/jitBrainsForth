@@ -483,10 +483,10 @@ public:
         a.comment(" ; ----- popSS");
         a.comment(" ; fetch value from the string stack (r12)");
         a.comment(" ; update string reference count");
-        a.sub(asmjit::x86::rsp, 40);
-        a.call(prim_dec_ss);
-        a.add(asmjit::x86::rsp, 40);
-        a.nop();
+        // a.sub(asmjit::x86::rsp, 40);
+        // a.call(prim_dec_ss);
+        // a.add(asmjit::x86::rsp, 40);
+        // a.nop();
         a.mov(reg, asmjit::x86::qword_ptr(asmjit::x86::r12));
         a.add(asmjit::x86::r12, 8);
     }
@@ -848,6 +848,8 @@ public:
     // in compile mode only.
     static void genTO()
     {
+
+        logging =true; jc.loggingON();
         const auto& words = *jc.words;
         size_t pos = jc.pos_next_word + 1;
 
@@ -868,13 +870,10 @@ public:
         if (offset != INVALID_OFFSET)
         {
             commentWithWord("; TO ----- pop stack into local variable: ", w);
-
             // Pop the value from the data stack into ecx
             popDS(asmjit::x86::ecx);
-
             // Store the value into the local variable
             a.mov(asmjit::x86::qword_ptr(asmjit::x86::r13, offset), asmjit::x86::ecx);
-
             jc.pos_last_word = pos;
             return;
         }
@@ -885,11 +884,11 @@ public:
         if (fword)
         {
             auto word_type = fword->type;
+            if ( logging ) printf("word_type: %d\n", word_type);
             if (word_type == ForthWordType::VALUE) // value
             {
                 auto data_address = d.get_data_ptr();
-                commentWithWord("; TO ----- update value: ", w);
-
+                if ( logging ) printf("data_address: %p\n", data_address);
                 // Load the address of the word's data
                 a.mov(asmjit::x86::rax, data_address);
 
@@ -898,24 +897,46 @@ public:
 
                 // Store the value into the address
                 a.mov(asmjit::x86::qword_ptr(asmjit::x86::rax), asmjit::x86::rcx);
+
+
             }
             else if (word_type == ForthWordType::CONSTANT)
             {
                 commentWithWord("; TO ----- can not update constant: ", w);
+                if ( logging ) printf("constant: %s\n", w.c_str());
                 throw std::runtime_error("TO can not update constant: " + w);
-
             }
             else if (word_type == ForthWordType::VARIABLE) // variable
             {
                 commentWithWord("; TO ----- pop stack into VARIABLE: ", w);
+                auto data_address = d.get_data_ptr();
+                a.mov(asmjit::x86::rax, data_address);
 
+                // Pop the value from the data stack into rcx
+                popDS(asmjit::x86::rcx);
+
+                // Store the value into the address
+                a.mov(asmjit::x86::qword_ptr(asmjit::x86::rax), asmjit::x86::rcx);
+
+
+            }
+            else if (word_type == ForthWordType::STRING) // variable
+            {
                 // Get the address of the variable's data
                 auto* variable_address = reinterpret_cast<int64_t*>(d.get_data_ptr());
+                if ( logging ) printf("string address: %p\n", variable_address);
                 if (!variable_address)
                 {
-                    throw std::runtime_error("Failed to get variable address for word: " + w);
+                    throw std::runtime_error("Failed to get string address for word: " + w);
                 }
-                storeDS(variable_address);
+
+                a.mov(asmjit::x86::rax, variable_address);
+
+                // Pop the value from the data stack into rcx
+                popSS(asmjit::x86::rcx);
+
+                // Store the value into the address
+                a.mov(asmjit::x86::qword_ptr(asmjit::x86::rax), asmjit::x86::rcx);
             }
             jc.pos_last_word = pos;
         }
@@ -924,6 +945,7 @@ public:
         {
             throw std::runtime_error("Unknown word in TO: " + w);
         }
+        logging =true; jc.loggingON();
     }
 
 
@@ -953,19 +975,29 @@ public:
                 // Store the value into the address
                 *reinterpret_cast<int64_t*>(data_address) = value;
             }
+            else if (word_type == ForthWordType::CONSTANT)
+            {
+                commentWithWord("; TO ----- can not update constant: ", w);
+                throw std::runtime_error("TO can not update constant: " + w);
+            }
             else if (word_type == ForthWordType::VARIABLE) // variable
             {
                 // Load the address of the data (double indirect access)
                 auto variable_address = reinterpret_cast<uint64_t>(&fword->data);
-
-
                 // Pop the value from the data stack
                 auto value = sm.popDS();
-
                 // Store the value into the address the variable points to
                 *reinterpret_cast<int64_t*>(variable_address) = value;
             }
+            else if (word_type == ForthWordType::STRING) // variable
+            {
+                // update a string variable from the string stack.
+                auto variable_address = reinterpret_cast<size_t>(fword->data);
+                size_t string_address = sm.popSS();
+                strIntern.incrementRef(string_address);
+                fword->data = string_address; // update the data pointer to point to the string
 
+            }
             jc.pos_last_word = pos;
         }
         else
