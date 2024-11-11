@@ -50,6 +50,13 @@ void add_words()
 
     d.addWord("CHAR", nullptr, nullptr, JitGenerator::genImmediateChar, JitGenerator::genTerpImmediateChar);
 
+
+    d.addWord("0=", JitGenerator::genZeroEquals, JitGenerator::build_forth(JitGenerator::genZeroEquals), nullptr,
+              nullptr);
+
+    d.addWord("0<", JitGenerator::genZeroLessThan, JitGenerator::build_forth(JitGenerator::genZeroLessThan), nullptr, nullptr);
+    d.addWord("0>", JitGenerator::genZeroGreaterThan, JitGenerator::build_forth(JitGenerator::genZeroGreaterThan), nullptr, nullptr);
+
     // Add the < comparison word
     d.addWord("<", JitGenerator::genLt, JitGenerator::build_forth(JitGenerator::genLt), nullptr, nullptr);
 
@@ -69,6 +76,8 @@ void add_words()
 
     d.addWord("MOD", JitGenerator::genMod, JitGenerator::build_forth(JitGenerator::genMod), nullptr, nullptr);
     d.addWord("NEGATE", JitGenerator::genNegate, JitGenerator::build_forth(JitGenerator::genNegate), nullptr, nullptr);
+    d.addWord("INVERT", JitGenerator::genInvert, JitGenerator::build_forth(JitGenerator::genInvert), nullptr, nullptr);
+
     d.addWord("ABS", JitGenerator::genAbs, JitGenerator::build_forth(JitGenerator::genAbs), nullptr, nullptr);
     d.addWord("MIN", JitGenerator::genMin, JitGenerator::build_forth(JitGenerator::genMin), nullptr, nullptr);
     d.addWord("MAX", JitGenerator::genMax, JitGenerator::build_forth(JitGenerator::genMax), nullptr, nullptr);
@@ -151,10 +160,10 @@ void add_words()
     d.addWord("words", nullptr, JitGenerator::words, nullptr, nullptr);
     d.addWord("see", nullptr, nullptr, nullptr, JitGenerator::see);
 
-    compileWord("space", "32 emit");
-    compileWord("spaces", "0 do space loop");
-    compileWord("cr", "13 emit 10 emit");
-    compileWord("sq", "dup * ");
+    compileWord("space", "32 emit", "");
+    compileWord("spaces", "0 do space loop", "");
+    compileWord("cr", "13 emit 10 emit", "");
+    compileWord("sq", "dup * ","");
 }
 
 

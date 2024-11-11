@@ -62,7 +62,9 @@ inline void testCompileAndRun(const std::string& wordName,
                               const std::string& wordDefinition,
                               const std::string& testString, int expectedResult)
 {
-    compileWord(wordName, wordDefinition);
+    // source code is : wordname wordDefinition ;
+    std::string sourceCode = wordName + " " + wordDefinition + " ;";
+    compileWord(wordName, wordDefinition, sourceCode);
     test_against_ds(testString, expectedResult);
     d.forgetLastWord();
 }
@@ -149,6 +151,13 @@ void run_basic_tests()
     test_against_ds("8 8*", 64); // 8 << 3 = 64
     test_against_ds("16 8*", 128); // 16 << 3 = 128
 
+
+    test_against_ds(" 0 invert ", -1);
+    test_against_ds(" 1 invert ", -2);
+    test_against_ds(" 2 invert ", -3);
+
+
+
     // Test if 3 is less than 5 (should be -1, which represents true in Forth)
     test_against_ds("3 5 <", -1);
 
@@ -166,6 +175,24 @@ void run_basic_tests()
 
     // Test if 5 is equal to 3 (should be 0, which represents false in Forth)
     test_against_ds("5 3 =", 0);
+
+    test_against_ds("-1 0=", 0);
+
+    test_against_ds("0 0=", -1);
+
+    // Tests for 0<
+    test_against_ds("0 0<", 0);   // 0 is not less than 0, hence false (0)
+    test_against_ds("1 0<", 0);   // 1 is not less than 0, hence false (0)
+    test_against_ds("-1 0<", -1); // -1 is less than 0, hence true (-1)
+    test_against_ds("10 0<", 0);  // 10 is not less than 0, hence false (0)
+    test_against_ds("-10 0<", -1);// -10 is less than 0, hence true (-1)
+
+    // Tests for 0>
+    test_against_ds("0 0>", 0);   // 0 is not greater than 0, hence false (0)
+    test_against_ds("1 0>", -1);  // 1 is greater than 0, hence true (-1)
+    test_against_ds("-1 0>", 0);  // -1 is not greater than 0, hence false (0)
+    test_against_ds("10 0>", -1); // 10 is greater than 0, hence true (-1)
+    test_against_ds("-10 0>", 0); // -10 is not greater than 0, hence false (0)
 
     // Test >R followed by R> (should push 5 to RS and then pop it back to DS, so DS ends with 5)
     test_against_ds("5 >R R>", 5);

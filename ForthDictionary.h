@@ -5,6 +5,7 @@
 #include <cstring>
 #include <vector>
 #include <cstdint>
+#include <unordered_map>
 #include "utility.h"
 
 // Function pointer type
@@ -26,7 +27,6 @@ enum ForthWordType
     VALUE = 1 << 2,
     STRING = 1 << 3
 };
-
 
 // Structure to represent a word in the dictionary
 struct ForthWord
@@ -51,14 +51,11 @@ struct ForthWord
               ForthWord* prev)
         : generatorFunc(genny), compiledFunc(func),
           immediateFunc(immFunc), terpFunc(terpFunc),
-    link (prev), state(0), data(0) // Set data to zero
-
+          link(prev), state(0), data(0) // Set data to zero
     {
         std::strncpy(name, wordName, sizeof(name));
         name[sizeof(name) - 1] = '\0'; // Ensure null-termination
     }
-
-
 };
 
 // Class to manage the Forth dictionary
@@ -74,8 +71,9 @@ public:
 
     // Add a new word to the dictionary
     void addWord(const char* name, ForthFunction generatorFunc, ForthFunction compiledFunc, ForthFunction immediateFunc,
-                 ForthFunction
-                 immTerpFunc);
+                 ForthFunction immTerpFunc, const std::string& sourceCode);
+    void addWord(const char* name, ForthFunction generatorFunc, ForthFunction compiledFunc, ForthFunction immediateFunc,
+                 ForthFunction immTerpFunc);
 
     // Find a word in the dictionary
     ForthWord* findWord(const char* name) const;
@@ -110,7 +108,6 @@ public:
     void displayWord(std::string name);
     void SetState(uint8_t i);
 
-
     // List all words in the dictionary
     void list_words() const;
 
@@ -121,6 +118,9 @@ private:
     std::vector<char> memory; // Memory buffer for the dictionary
     size_t currentPos; // Current position in the memory buffer
     ForthWord* latestWord; // Pointer to the latest added word
+
+    // Map to store the source code associated with each word
+    std::unordered_map<std::string, std::string> sourceCodeMap;
 };
 
 #endif // FORTH_DICTIONARY_H

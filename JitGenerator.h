@@ -848,8 +848,8 @@ public:
     // in compile mode only.
     static void genTO()
     {
-
-        logging =true; jc.loggingON();
+        logging = true;
+        jc.loggingON();
         const auto& words = *jc.words;
         size_t pos = jc.pos_next_word + 1;
 
@@ -884,11 +884,11 @@ public:
         if (fword)
         {
             auto word_type = fword->type;
-            if ( logging ) printf("word_type: %d\n", word_type);
+            if (logging) printf("word_type: %d\n", word_type);
             if (word_type == ForthWordType::VALUE) // value
             {
                 auto data_address = d.get_data_ptr();
-                if ( logging ) printf("data_address: %p\n", data_address);
+                if (logging) printf("data_address: %p\n", data_address);
                 // Load the address of the word's data
                 a.mov(asmjit::x86::rax, data_address);
 
@@ -897,13 +897,11 @@ public:
 
                 // Store the value into the address
                 a.mov(asmjit::x86::qword_ptr(asmjit::x86::rax), asmjit::x86::rcx);
-
-
             }
             else if (word_type == ForthWordType::CONSTANT)
             {
                 commentWithWord("; TO ----- can not update constant: ", w);
-                if ( logging ) printf("constant: %s\n", w.c_str());
+                if (logging) printf("constant: %s\n", w.c_str());
                 throw std::runtime_error("TO can not update constant: " + w);
             }
             else if (word_type == ForthWordType::VARIABLE) // variable
@@ -917,14 +915,12 @@ public:
 
                 // Store the value into the address
                 a.mov(asmjit::x86::qword_ptr(asmjit::x86::rax), asmjit::x86::rcx);
-
-
             }
             else if (word_type == ForthWordType::STRING) // variable
             {
                 // Get the address of the variable's data
                 auto* variable_address = reinterpret_cast<int64_t*>(d.get_data_ptr());
-                if ( logging ) printf("string address: %p\n", variable_address);
+                if (logging) printf("string address: %p\n", variable_address);
                 if (!variable_address)
                 {
                     throw std::runtime_error("Failed to get string address for word: " + w);
@@ -945,7 +941,8 @@ public:
         {
             throw std::runtime_error("Unknown word in TO: " + w);
         }
-        logging =true; jc.loggingON();
+        logging = true;
+        jc.loggingON();
     }
 
 
@@ -996,7 +993,6 @@ public:
                 size_t string_address = sm.popSS();
                 strIntern.incrementRef(string_address);
                 fword->data = string_address; // update the data pointer to point to the string
-
             }
             jc.pos_last_word = pos;
         }
@@ -1084,10 +1080,7 @@ public:
 
         ForthFunction compiledFunc = endGeneration();
         d.setCompiledFunction(compiledFunc);
-        // Update position
         jc.pos_last_word = pos;
-        //logging = false;
-        //jc.loggingOFF();
     }
 
 
@@ -2891,6 +2884,28 @@ public:
         a.mov(asmjit::x86::qword_ptr(ds), value); // Store the result back on stack
     }
 
+
+    static void genInvert()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genInvert: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- genInvert");
+
+        // Assuming r15 is the stack pointer
+        asmjit::x86::Gp ds = asmjit::x86::r15;
+        asmjit::x86::Gp value = asmjit::x86::rax;
+
+        a.comment(" ; Invert the top value of the stack");
+        a.mov(value, asmjit::x86::qword_ptr(ds)); // Load the top value
+        a.not_(value); // Invert the value
+        a.mov(asmjit::x86::qword_ptr(ds), value); // Store the result back on stack
+    }
+
+
     static void genAbs()
     {
         if (!jc.assembler)
@@ -3030,6 +3045,85 @@ public:
     }
 
     // comparisons
+
+    static void genZeroEquals() {
+        if (!jc.assembler) {
+            throw std::runtime_error("genZeroEquals: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- genZeroEquals");
+
+        // Assuming r15 is the stack pointer
+        asmjit::x86::Gp ds = asmjit::x86::r15;
+        asmjit::x86::Gp value = asmjit::x86::rax;
+        asmjit::x86::Gp flag = asmjit::x86::rbx;
+
+        a.comment(" ; Check if the top value of the stack is zero");
+        a.mov(value, asmjit::x86::qword_ptr(ds)); // Load the top value
+        a.test(value, value); // Test if value is zero
+        a.setz(asmjit::x86::bl); // Set flag (bl) to 1 if zero, otherwise 0
+
+        a.comment(" ; Convert the flag to Forth truth values (-1 or 0)");
+        a.neg(asmjit::x86::bl); // Negate the flag value to make 1 -> -1 (true), and 0 stays 0 (false)
+        a.movsx(flag, asmjit::x86::bl); // Sign-extend bl to the full width of flag (rbx)
+        a.mov(asmjit::x86::qword_ptr(ds), flag); // Store the result back on stack
+    }
+
+
+    static void genZeroLessThan() {
+        if (!jc.assembler) {
+            throw std::runtime_error("genZeroLessThan: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- genZeroLessThan");
+
+        // Assuming r15 is the stack pointer
+        asmjit::x86::Gp ds = asmjit::x86::r15;
+        asmjit::x86::Gp value = asmjit::x86::rax;
+        asmjit::x86::Gp flag = asmjit::x86::rbx;
+
+        a.comment(" ; Check if the top value of the stack is less than zero");
+        a.mov(value, asmjit::x86::qword_ptr(ds)); // Load the top value
+        a.test(value, value); // Test if value is less than zero
+        a.setl(asmjit::x86::bl); // Set flag (bl) to 1 if less than zero, otherwise 0
+
+        a.comment(" ; Convert the flag to Forth truth values (-1 or 0)");
+        a.neg(asmjit::x86::bl); // Negate the flag value to make 1 -> -1 (true), and 0 stays 0 (false)
+        a.movsx(flag, asmjit::x86::bl); // Sign-extend bl to the full width of flag (rbx)
+        a.mov(asmjit::x86::qword_ptr(ds), flag); // Store the result back on stack
+    }
+
+
+    static void genZeroGreaterThan() {
+        if (!jc.assembler) {
+            throw std::runtime_error("genZeroGreaterThan: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- genZeroGreaterThan");
+
+        // Assuming r15 is the stack pointer
+        asmjit::x86::Gp ds = asmjit::x86::r15;
+        asmjit::x86::Gp value = asmjit::x86::rax;
+        asmjit::x86::Gp flag = asmjit::x86::rbx;
+
+        a.comment(" ; Check if the top value of the stack is greater than zero");
+        a.mov(value, asmjit::x86::qword_ptr(ds)); // Load the top value
+        a.test(value, value); // Test if value is greater than zero
+        a.setg(asmjit::x86::bl); // Set flag (bl) to 1 if greater than zero, otherwise 0
+
+        a.comment(" ; Convert the flag to Forth truth values (-1 or 0)");
+        a.neg(asmjit::x86::bl); // Negate the flag value to make 1 -> -1 (true), and 0 stays 0 (false)
+        a.movsx(flag, asmjit::x86::bl); // Sign-extend bl to the full width of flag (rbx)
+        a.mov(asmjit::x86::qword_ptr(ds), flag); // Store the result back on stack
+    }
+
+
+
+
+
 
     static void genEq()
     {

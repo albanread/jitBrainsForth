@@ -44,16 +44,18 @@ inline void exec(ForthFunction f)
     f();
 }
 
-inline std::string scanForLiterals(const std::string& compileText) {
+inline std::string scanForLiterals(const std::string& compileText)
+{
     std::regex literalRegex(R"((\w*")\s(.*?[^\\])\")");
     std::string result;
     std::smatch match;
     std::string tmpText = compileText;
     StringInterner& interner = StringInterner::getInstance();
 
-    while (std::regex_search(tmpText, match, literalRegex)) {
-        std::string literalStart = match[1].str();  // s" or ."
-        std::string literalString = match[2].str();  // The literal content after the first space
+    while (std::regex_search(tmpText, match, literalRegex))
+    {
+        std::string literalStart = match[1].str(); // s" or ."
+        std::string literalString = match[2].str(); // The literal content after the first space
 
         // Intern the literal string content
         auto internedPtr = interner.intern(literalString);
@@ -71,9 +73,7 @@ inline std::string scanForLiterals(const std::string& compileText) {
 }
 
 
-
-
-inline void compileWord(const std::string& wordName, const std::string& compileText)
+inline void compileWord(const std::string& wordName, const std::string& compileText, const std::string& sourceCode)
 {
     bool logging = tracedWords.find(wordName) != tracedWords.end();
 
@@ -137,7 +137,7 @@ inline void compileWord(const std::string& wordName, const std::string& compileT
                 {
                     i = jc.pos_last_word;
                 }
-                if (logging)  printf("next word is %s", words[i].c_str());
+                if (logging) printf("next word is %s", words[i].c_str());
             }
             else
             {
@@ -193,7 +193,13 @@ inline void compileWord(const std::string& wordName, const std::string& compileT
     // Finalize compiled word
     JitGenerator::genEpilogue();
     const ForthFunction f = JitGenerator::endGeneration();
-    d.addWord(wordName.c_str(), nullptr, f, nullptr, nullptr);
+    d.addWord(wordName.c_str(),
+              nullptr,
+              f,
+              nullptr,
+              nullptr, sourceCode);
+
+
     if (logging)
     {
         printf("Compiler: successfully compiled word: %s\n", wordName.c_str());
@@ -203,10 +209,9 @@ inline void compileWord(const std::string& wordName, const std::string& compileT
 }
 
 // interpreter calls words, or pushes numbers.
-inline void interpreter(const std::string& input)
+inline void interpreter(const std::string& sourceCode)
 {
-
-    std::string newCompileText = scanForLiterals(input);
+    std::string newCompileText = scanForLiterals(sourceCode);
 
     const auto words = split(newCompileText);
 
@@ -259,7 +264,7 @@ inline void interpreter(const std::string& input)
             }
 
             // Compile the collected words
-            compileWord(wordName, compileText);
+            compileWord(wordName, compileText, sourceCode);
 
             // Skip the ";" in the input words
             ++i;
@@ -287,7 +292,7 @@ inline void interpreter(const std::string& input)
                     {
                         i = jc.pos_last_word;
                     }
-                    if (logging)  printf("next word is %s", words[i].c_str());
+                    if (logging) printf("next word is %s", words[i].c_str());
                 }
                 else
                 {
@@ -436,33 +441,44 @@ inline void interactive_terminal()
                 }
             }
 
-            if (word == "*dump" || word == "*DUMP") {
+            if (word == "*dump" || word == "*DUMP")
+            {
                 // Get the next word
                 ++it;
-                if (it != words.end()) {
+                if (it != words.end())
+                {
                     const auto& addrStr = *it;
                     uintptr_t address;
 
-                    try {
-                        if (addrStr.find("0x") != std::string::npos || addrStr.find("0X") != std::string::npos) {
+                    try
+                    {
+                        if (addrStr.find("0x") != std::string::npos || addrStr.find("0X") != std::string::npos)
+                        {
                             // Address is in hexadecimal
                             address = std::stoull(addrStr, nullptr, 16);
-                        } else {
+                        }
+                        else
+                        {
                             // Address is in decimal
                             address = std::stoull(addrStr, nullptr, 10);
                         }
 
                         // Cast the address to a void pointer and call dump
                         dump(reinterpret_cast<void*>(address));
-                    } catch (const std::invalid_argument& e) {
+                    }
+                    catch (const std::invalid_argument& e)
+                    {
                         std::cerr << "Error: Invalid address format" << std::endl;
-                                    } catch (const std::out_of_range& e) {
+                    } catch (const std::out_of_range& e)
+                    {
                         std::cerr << "Error: Address out of range" << std::endl;
                     }
 
                     // Remove `command` and `nextWord` from accumulated_input
                     accumulated_input.erase(accumulated_input.find(word), word.length() + addrStr.length() + 2);
-                } else {
+                }
+                else
+                {
                     std::cerr << "Error: Expected address after " << word << std::endl;
                 }
                 continue; // Process next word

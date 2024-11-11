@@ -2,7 +2,7 @@
 #include <cctype>
 #include <stdexcept>
 #include <iostream>
-
+#include <unordered_map>
 #include "JitGenerator.h"
 
 // Static method to get the singleton instance
@@ -22,11 +22,10 @@ void ForthDictionary::addWord(const char* name,
                               ForthFunction generatorFunc,
                               ForthFunction compiledFunc,
                               ForthFunction immediateFunc,
-                              ForthFunction immTerpFunc)
+                              ForthFunction immTerpFunc,
+                              const std::string& sourceCode="")
 {
     std::string lower_name = to_lower(name);
-
-   //  std::cout << "Added word " << lower_name << std::endl;
 
     if (currentPos + sizeof(ForthWord) > memory.size())
     {
@@ -44,12 +43,22 @@ void ForthDictionary::addWord(const char* name,
     // Correctly set the latest word to the new word
     latestWord = newWord;
 
+    // Store the source code in the map
+    sourceCodeMap[lower_name] = sourceCode;
 
     currentPos += sizeof(ForthWord);
-
-    // Can leave a comment describing why you are allotting extra space
     allot(16); // Increase current position for potentially more data
 }
+
+void ForthDictionary::addWord(const char* name,
+                              ForthFunction generatorFunc,
+                              ForthFunction compiledFunc,
+                              ForthFunction immediateFunc,
+                              ForthFunction immTerpFunc)
+{
+    addWord(name, generatorFunc, compiledFunc, immediateFunc, immTerpFunc, "");
+}
+
 
 // Find a word in the dictionary
 ForthWord* ForthDictionary::findWord(const char* name) const
@@ -119,11 +128,12 @@ void ForthDictionary::forgetLastWord()
 
     std::cout << "Forgetting word " << latestWord->name << std::endl;
 
+    // Remove source code entry
+    sourceCodeMap.erase(latestWord->name);
+
     // Size of the word (this depends on your actual implementation details. Adjust as needed).
     size_t wordSize = sizeof(ForthWord) + 16; // include the extra allotted space
     currentPos -= wordSize;
-
-    // std::memset(&memory[currentPos], 0, wordSize); // Wipe the memory with zeros
 
     // Update the latest word pointer
     ForthWord* previousWord = latestWord->link;
@@ -225,11 +235,18 @@ void ForthDictionary::displayWord(std::string name)
     std::cout << "Compiled function: " << std::hex << reinterpret_cast<uintptr_t>(word->compiledFunc) << std::endl;
     std::cout << "Immediate function: " << std::hex << reinterpret_cast<uintptr_t>(word->immediateFunc) << std::endl;
     std::cout << "Generator function: " << std::hex << reinterpret_cast<uintptr_t>(word->generatorFunc) << std::endl;
-    std::cout << "Interp function: " << std::hex << reinterpret_cast<uintptr_t>(word->generatorFunc) << std::endl;
+    std::cout << "Interp function: " << std::hex << reinterpret_cast<uintptr_t>(word->terpFunc) << std::endl;
     std::cout << "State: " << word->state << std::endl;
     std::cout << "Type: "  << word->type << std::endl;
     std::cout << "Data: " << std::dec << word->data << std::endl;
-    std::cout << "Link: " << word->link << std::endl << std::endl;
+    std::cout << "Link: " << word->link << std::endl;
+
+    auto it = sourceCodeMap.find(word->name);
+    if (it != nullptr && !it->second.empty()) {
+        std::cout << "Source Code: " << it->second << std::endl;
+    } else {
+        std::cout << "Source Code: N/A" << std::endl << std::endl;
+    }
 }
 
 // List all words in the dictionary
