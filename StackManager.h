@@ -7,6 +7,9 @@
 #include <iostream>
 #include <array>
 #include <algorithm>
+#include "StringInterner.h"
+
+inline StringInterner& strIntern = StringInterner::getInstance();
 
 // Forward declaration
 class jitGenerator;
@@ -262,6 +265,62 @@ public:
 
         return val;
     }
+
+    // peek stacks
+    // get value from a stack without popping it.
+    uint64_t peekSS()
+    {
+        asm volatile (
+            "mov %%r12, %0;"
+            : "=r"(ssPtr) // output
+        );
+        auto val = *ssPtr;
+        return val;
+    }
+
+    uint64_t peekLS()
+    {
+        asm volatile (
+            "mov %%r13, %0;"
+            : "=r"(lsPtr) // output
+        );
+        auto val = *lsPtr;
+        return val;
+    }
+    // get value from a stack without popping it.
+    uint64_t peekDS()
+    {
+        asm volatile (
+            "mov %%r15, %0;"
+            : "=r"(dsPtr) // output
+        );
+        auto val = *dsPtr;
+        return val;
+    }
+    uint64_t peekRS()
+    {
+        asm volatile (
+            "mov %%r14, %0;"
+            : "=r"(rsPtr) // output
+        );
+        auto val = *rsPtr;
+        return val;
+    }
+
+    // decrement string ref on top of stack
+    void decSS()
+    {
+       size_t index = peekSS();
+       strIntern.decrementRef(index);
+    }
+
+    void incSS()
+    {
+        size_t index = peekSS();
+        strIntern.incrementRef(index);
+    }
+
+
 
     [[nodiscard]] uint64_t getDStop() const
     {

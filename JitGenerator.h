@@ -13,7 +13,7 @@
 #include "StringInterner.h"
 #include "Quit.h"
 
-inline StringInterner& strIntern = StringInterner::getInstance();
+
 
 const int INVALID_OFFSET = -9999;
 
@@ -442,6 +442,40 @@ public:
         a.mov(asmjit::x86::qword_ptr(asmjit::x86::r12), reg);
     }
 
+
+
+    static void prim_inc_ss()
+    {
+        sm.incSS();
+    }
+
+    static void pushSSAndBumpRef(asmjit::x86::Gp reg)
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("gen_prologue: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+
+        a.comment("; Increment string reference");
+        a.sub(asmjit::x86::rsp, 40);
+        a.call(prim_dec_ss);
+        a.add(asmjit::x86::rsp, 40);
+
+        a.comment(" ; ----- pushSS");
+        a.comment(" ; save value to the string stack (r12)");
+        a.sub(asmjit::x86::r12, 8);
+        a.mov(asmjit::x86::qword_ptr(asmjit::x86::r12), reg);
+    }
+
+
+
+    static void prim_dec_ss()
+    {
+        sm.decSS();
+    }
+
     static void popSS(asmjit::x86::Gp reg)
     {
         if (!jc.assembler)
@@ -452,6 +486,10 @@ public:
         auto& a = *jc.assembler;
         a.comment(" ; ----- popSS");
         a.comment(" ; fetch value from the string stack (r12)");
+        a.comment(" ; update string reference count");
+        a.sub(asmjit::x86::rsp, 40);
+        a.call(prim_dec_ss);
+        a.add(asmjit::x86::rsp, 40);
         a.nop();
         a.mov(reg, asmjit::x86::qword_ptr(asmjit::x86::r12));
         a.add(asmjit::x86::r12, 8);
@@ -993,6 +1031,7 @@ public:
 
         // Pop the initial value from the data stack
         auto initialValue = sm.popSS();
+        strIntern.incrementRef(initialValue);
         printf("initialValue: %llu\n", initialValue);
         jc.resetContext();
         if (!jc.assembler)
@@ -1085,6 +1124,7 @@ public:
         jc.word = word;
         if (logging) printf("genImmediateDotQuote: %s\n", word.c_str());
         const auto index = stripIndex(word);
+        strIntern.incrementRef(index);
         auto address = strIntern.getStringAddress(index);
 
         if (!jc.assembler)

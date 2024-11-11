@@ -96,6 +96,63 @@ public:
         return storage.getStringAddress(index);
     }
 
+
+    // increment ref for string at index
+    void incrementRef(size_t index)
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (ref_counts.find(index) != ref_counts.end())
+        {
+            ref_counts[index]++;
+        }
+    }
+
+    // decrement ref for string at index
+    void decrementRef(size_t index)
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (ref_counts.find(index) != ref_counts.end())
+        {
+            ref_counts[index]--;
+            // release string if necessary
+            if (ref_counts[index] == 0)
+            {
+                // Remove the string from the intern map
+                auto it = std::find_if(intern_map.begin(), intern_map.end(),
+                                       [index](const auto& pair) { return pair.second == index; });
+                if (it != intern_map.end())
+                {
+                    intern_map.erase(it);
+                }
+            }
+        }
+    }
+
+    // this is used when unstacking potentially transient strings
+    void decrementSingleRef(size_t index)
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (ref_counts.find(index) != ref_counts.end())
+        {
+            if (ref_counts[index] == 1)
+                ref_counts[index]--;
+            else return;
+
+            // release string if necessary
+            if (ref_counts[index] == 0)
+            {
+                // Remove the string from the intern map
+                auto it = std::find_if(intern_map.begin(), intern_map.end(),
+                                       [index](const auto& pair) { return pair.second == index; });
+                if (it != intern_map.end())
+                {
+                    intern_map.erase(it);
+                }
+            }
+        }
+    }
+
+
     // Decreases the reference count of the string by its index and removes it if the count reaches zero.
     void release(size_t index)
     {
@@ -130,23 +187,26 @@ public:
 
     // Displays list of strings, their indices, and reference counts.
 
-    void display_list() const {
+    void display_list() const
+    {
         // Retrieve the list of interned strings and their reference counts
         std::lock_guard<std::mutex> lock(mutex_);
-        for (const auto& entry : intern_map) {
+        for (const auto& entry : intern_map)
+        {
             const auto& str = entry.first;
             const auto index = entry.second;
             const auto ref_count = ref_counts.at(index);
             const auto address = storage.getStringAddress(index);
-            std::cout << "[" << str << "] (Index: " << index << ", Ref Count: " << ref_count << ", Address: " << address << ")" << std::endl;
+            std::cout << "[" << str << "] (Index: " << index << ", Ref Count: " << ref_count << ", Address: " << address
+                << ")" << std::endl;
         }
     }
 
-    size_t StringCat(size_t index1, size_t index2) {
+    size_t StringCat(size_t index1, size_t index2)
+    {
         std::string newStr = getString(index1) + getString(index2);
         return intern(newStr);
     }
-
 
 private:
     StringInterner() = default; // Private constructor for singleton.

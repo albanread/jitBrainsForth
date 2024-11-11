@@ -75,6 +75,11 @@ void Quit()
 {
     PVOID handler = AddVectoredExceptionHandler(1, VectoredHandler);
 
+    sm.resetDS();
+    sm.resetLS();
+    sm.resetSS();
+    sm.resetRS();
+
     while (true)
     {
         try
