@@ -17,15 +17,13 @@ StringInterner& interner = StringInterner::getInstance();
 
 void add_words()
 {
-
-
-    d.addWord("1", JitGenerator::push1, JitGenerator::build_forth(JitGenerator::push1), nullptr,nullptr);
+    d.addWord("1", JitGenerator::push1, JitGenerator::build_forth(JitGenerator::push1), nullptr, nullptr);
     d.addWord("2", JitGenerator::push2, JitGenerator::build_forth(JitGenerator::push2), nullptr, nullptr);
     d.addWord("3", JitGenerator::push3, JitGenerator::build_forth(JitGenerator::push3), nullptr, nullptr);
     d.addWord("4", JitGenerator::push4, JitGenerator::build_forth(JitGenerator::push4), nullptr, nullptr);
     d.addWord("8", JitGenerator::push8, JitGenerator::build_forth(JitGenerator::push8), nullptr, nullptr);
 
-   // d.addWord("16", JitGenerator::push16, JitGenerator::build_forth(JitGenerator::push16), nullptr, nullptr);
+    // d.addWord("16", JitGenerator::push16, JitGenerator::build_forth(JitGenerator::push16), nullptr, nullptr);
 
     d.addWord("32", JitGenerator::push32, JitGenerator::build_forth(JitGenerator::push32), nullptr, nullptr);
     d.addWord("64", JitGenerator::push64, JitGenerator::build_forth(JitGenerator::push64), nullptr, nullptr);
@@ -50,6 +48,7 @@ void add_words()
     d.addWord("2-", JitGenerator::gen2Dec, JitGenerator::build_forth(JitGenerator::gen2Dec), nullptr, nullptr);
     d.addWord("16-", JitGenerator::gen16Dec, JitGenerator::build_forth(JitGenerator::gen16Dec), nullptr, nullptr);
 
+    d.addWord("CHAR", nullptr, nullptr, JitGenerator::genImmediateChar, JitGenerator::genTerpImmediateChar);
 
     // Add the < comparison word
     d.addWord("<", JitGenerator::genLt, JitGenerator::build_forth(JitGenerator::genLt), nullptr, nullptr);
@@ -65,6 +64,16 @@ void add_words()
     d.addWord("-", JitGenerator::genSub, JitGenerator::build_forth(JitGenerator::genSub), nullptr, nullptr);
     d.addWord("*", JitGenerator::genMul, JitGenerator::build_forth(JitGenerator::genMul), nullptr, nullptr);
     d.addWord("/", JitGenerator::genDiv, JitGenerator::build_forth(JitGenerator::genDiv), nullptr, nullptr);
+
+    //d.addWord("*/MOD", JitGenerator::genStarSlashMod, JitGenerator::build_forth(JitGenerator::genStarSlashMod), nullptr, nullptr);
+
+    d.addWord("MOD", JitGenerator::genMod, JitGenerator::build_forth(JitGenerator::genMod), nullptr, nullptr);
+    d.addWord("NEGATE", JitGenerator::genNegate, JitGenerator::build_forth(JitGenerator::genNegate), nullptr, nullptr);
+    d.addWord("ABS", JitGenerator::genAbs, JitGenerator::build_forth(JitGenerator::genAbs), nullptr, nullptr);
+    d.addWord("MIN", JitGenerator::genMin, JitGenerator::build_forth(JitGenerator::genMin), nullptr, nullptr);
+    d.addWord("MAX", JitGenerator::genMax, JitGenerator::build_forth(JitGenerator::genMax), nullptr, nullptr);
+    d.addWord("WITHIN", JitGenerator::genWithin, JitGenerator::build_forth(JitGenerator::genWithin), nullptr, nullptr);
+
     d.addWord("DUP", JitGenerator::genDup, JitGenerator::build_forth(JitGenerator::genDup), nullptr, nullptr);
     d.addWord("DROP", JitGenerator::genDrop, JitGenerator::build_forth(JitGenerator::genDrop), nullptr, nullptr);
     d.addWord("SWAP", JitGenerator::genSwap, JitGenerator::build_forth(JitGenerator::genSwap), nullptr, nullptr);
@@ -120,12 +129,14 @@ void add_words()
     d.addWord(".\"", nullptr, nullptr, JitGenerator::genImmediateDotQuote, nullptr);
     d.addWord("s\"", nullptr, nullptr, JitGenerator::genImmediateSQuote, JitGenerator::genTerpImmediateSQuote);
 
-    d.addWord("s+", JitGenerator::genStringCat, JitGenerator::build_forth(JitGenerator::genStringCat), nullptr, nullptr);
+    d.addWord("s+", JitGenerator::genStringCat, JitGenerator::build_forth(JitGenerator::genStringCat), nullptr,
+              nullptr);
 
     d.addWord("sprint", JitGenerator::genPrint, JitGenerator::build_forth(JitGenerator::genPrint), nullptr, nullptr);
 
     d.addWord("value", nullptr, nullptr, nullptr, JitGenerator::genImmediateValue);
     d.addWord("string", nullptr, nullptr, nullptr, JitGenerator::genImmediateStringValue);
+    d.addWord("constant", nullptr, nullptr, nullptr, JitGenerator::genImmediateConstant);
 
     d.addWord("variable", nullptr, nullptr, nullptr, JitGenerator::genImmediateVariable);
 
@@ -140,10 +151,10 @@ void add_words()
     d.addWord("words", nullptr, JitGenerator::words, nullptr, nullptr);
     d.addWord("see", nullptr, nullptr, nullptr, JitGenerator::see);
 
-     compileWord("space", "32 emit");
-     compileWord("spaces", "0 do space loop");
-     compileWord("cr", "13 emit 10 emit");
-     compileWord("sq", "dup * ");
+    compileWord("space", "32 emit");
+    compileWord("spaces", "0 do space loop");
+    compileWord("cr", "13 emit 10 emit");
+    compileWord("sq", "dup * ");
 }
 
 

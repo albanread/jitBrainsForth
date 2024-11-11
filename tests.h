@@ -44,7 +44,7 @@ inline void test_against_ds(const std::string& words, const uint64_t expected_to
     {
         failed_tests++;
         std::cout << "!!!! ---- Failed test: " << words << " Expected: " << expected_top << " but got: " << result <<
-          "<<<<< ---- Failed test !!!" <<  std::endl;
+            "<<<<< ---- Failed test !!!" << std::endl;
     }
     else
     {
@@ -67,9 +67,8 @@ inline void testCompileAndRun(const std::string& wordName,
 inline void testInterpreter(const std::string& test_name, const std::string& testString,
                             const int expectedResult)
 {
-
     uint64_t result = sm.popDS();
-     interpreter(testString); // Interpret the test string input
+    interpreter(testString); // Interpret the test string input
     total_tests++;
     if (result != expectedResult)
     {
@@ -176,12 +175,11 @@ void run_basic_tests()
     // value and variable tests
     test_against_ds(" variable fred 110 fred ! fred @ forget ", 110);
 
-    test_against_ds(" variable fred 120 to fred fred @   " , 120);
+    test_against_ds(" variable fred 120 to fred fred @   ", 120);
 
     test_against_ds(" 77 value testval testval forget ", 77);
 
-    test_against_ds(" 77 value testval 99 to testval testval forget " , 99);
-
+    test_against_ds(" 77 value testval 99 to testval testval forget ", 99);
 
 
     // compiled word tests
@@ -298,11 +296,31 @@ void run_basic_tests()
                       " 9 10 6 testLocals3 ",
                       32);
 
-                      // Print summary after running tests
-                        std::cout << "\nTest results:" << std::endl;
-                        std::cout << "Total tests run: " << total_tests << std::endl;
-                        std::cout << "Passed tests: " << passed_tests << std::endl;
-                        std::cout << "Failed tests: " << failed_tests << std::endl;
 
+    test_against_ds(" 10 3 MOD ", 1); // 10 % 3 = 1
+    test_against_ds(" 5 NEGATE ", -5); // -5
+    test_against_ds(" -7 ABS ", 7); // | -7 | = 7
+    test_against_ds(" 4 9 MIN ", 4); // min(4, 9) = 4
+    test_against_ds(" 15 5 MAX ", 15); // max(15, 5) = 15
+
+    test_against_ds(" 5 1 10 WITHIN ", -1);   // 5 is within the range [1, 10), should return -1 (true)
+    test_against_ds(" 0 1 10 WITHIN ", 0);   // 0 is not within the range [1, 10), should return 0 (false)
+    test_against_ds(" 10 1 10 WITHIN ", 0);  // 10 is not within the range [1, 10), should return 0 (false)
+    test_against_ds(" 15 1 10 WITHIN ", 0);  // 15 is not within the range [1, 10), should return 0 (false)
+    test_against_ds(" 5 5 10 WITHIN ", -1);   // 5 is within the range [5, 10), should return -1 (true)
+
+    test_against_ds(" CHAR a  ", 97);
+
+    testCompileAndRun("testChar",
+                   " CHAR A",
+
+                   " testChar ",
+                   65);
+
+    // Print summary after running tests
+    std::cout << "\nTest results:" << std::endl;
+    std::cout << "Total tests run: " << total_tests << std::endl;
+    std::cout << "Passed tests: " << passed_tests << std::endl;
+    std::cout << "Failed tests: " << failed_tests << std::endl;
 }
 #endif //TESTS_H

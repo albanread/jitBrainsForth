@@ -141,7 +141,7 @@ inline extern void prim_emit(const uint64_t a)
 
 inline extern void prints(const char* str)
 {
-   std::cout << str;
+    std::cout << str;
 }
 
 
@@ -899,6 +899,12 @@ public:
                 // Store the value into the address
                 a.mov(asmjit::x86::qword_ptr(asmjit::x86::rax), asmjit::x86::rcx);
             }
+            else if (word_type == ForthWordType::CONSTANT)
+            {
+                commentWithWord("; TO ----- can not update constant: ", w);
+                throw std::runtime_error("TO can not update constant: " + w);
+
+            }
             else if (word_type == ForthWordType::VARIABLE) // variable
             {
                 commentWithWord("; TO ----- pop stack into VARIABLE: ", w);
@@ -913,13 +919,11 @@ public:
             }
             jc.pos_last_word = pos;
         }
+
         else
         {
             throw std::runtime_error("Unknown word in TO: " + w);
         }
-
-        logging = false;
-        jc.loggingOFF();
     }
 
 
@@ -974,6 +978,47 @@ public:
     }
 
 
+    // char a . = 97
+    static void genImmediateChar()
+    {
+        const auto& words = *jc.words;
+        size_t pos = jc.pos_next_word + 1;
+        // Get the next word from the input stream
+        std::string word = words[pos];
+        jc.word = word;
+        // Extract the first character from the word
+        char charValue = word.front();
+        auto initialValue = static_cast<uint64_t>(charValue);
+        // Reset the context
+        jc.resetContext();
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genImmediateChar: Assembler not initialized");
+        }
+        auto& a = *jc.assembler;
+        commentWithWord(" ; ----- immediate char: ", std::string(1, charValue));
+        a.comment(" ; ----- fetch char");
+        // move charValue to rax
+        a.mov(asmjit::x86::rax, initialValue);
+        pushDS(asmjit::x86::rax); // Push the address of the data stack onto the stack.
+        jc.pos_last_word = pos;
+    }
+
+
+    static void genTerpImmediateChar()
+    {
+        const auto& words = *jc.words;
+        size_t pos = jc.pos_next_word + 1;
+        // Get the next word from the input stream
+        std::string word = words[pos];
+        // Extract the first character from the word
+        char charValue = word.front();
+        auto initialValue = static_cast<uint64_t>(charValue);
+        sm.pushDS(initialValue);
+        jc.pos_last_word = pos;
+    }
+
+
     // immediate value, runs when value is called.
     // 10 VALUE fred
     static void genImmediateValue()
@@ -1011,6 +1056,41 @@ public:
         jc.pos_last_word = pos;
         //logging = false;
         //jc.loggingOFF();
+    }
+
+
+    // immediate value, runs when value is called.
+    // 10 VALUE fred
+    static void genImmediateConstant()
+    {
+        const auto& words = *jc.words;
+        size_t pos = jc.pos_next_word + 1;
+
+        std::string word = words[pos];
+        jc.word = word;
+        // Pop the initial value from the data stack
+        auto initialValue = sm.popDS();
+        //printf("initialValue: %llu\n", initialValue);
+        jc.resetContext();
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("entryFunction: Assembler not initialized");
+        }
+        auto& a = *jc.assembler;
+        commentWithWord(" ; ----- immediate value: ", word);
+        // Add the word to the dictionary as a value
+        d.addWord(word.c_str(), nullptr, nullptr, nullptr, nullptr);
+        d.setData(initialValue); // Set the value
+        auto dataAddress = d.get_data_ptr();
+        d.setType(ForthWordType::CONSTANT); // value type
+
+        a.comment(" ; ----- fetch value");
+        loadDS(dataAddress);
+        a.ret();
+
+        ForthFunction compiledFunc = endGeneration();
+        d.setCompiledFunction(compiledFunc);
+        jc.pos_last_word = pos;
     }
 
 
@@ -1449,7 +1529,7 @@ public:
     static void* prim_sindex(size_t index)
     {
         auto address = strIntern.getStringAddress(index);
-       // printf("address: %p\n", address);
+        // printf("address: %p\n", address);
         return address;
     }
 
@@ -2657,6 +2737,265 @@ public:
         a.mov(asmjit::x86::qword_ptr(ds), firstVal); // Store result back on stack
     }
 
+    static void genMod()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genMod: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- genMod");
+
+        // Assuming r15 is the stack pointer
+        asmjit::x86::Gp ds = asmjit::x86::r15;
+        asmjit::x86::Gp dividend = asmjit::x86::rax;
+        asmjit::x86::Gp divisor = asmjit::x86::rcx;
+
+        // Pop two values from the stack, compute the remainder, and push the result
+        a.comment(" ; Perform % modulus");
+        a.mov(divisor, asmjit::x86::qword_ptr(ds)); // Load the second value (divisor)
+        a.add(ds, 8); // Adjust stack pointer
+
+        a.mov(dividend, asmjit::x86::qword_ptr(ds)); // Load the first value (dividend)
+        a.add(ds, 8); // Adjust stack pointer
+
+        a.mov(asmjit::x86::rdx, 0); // Clear RDX for unsigned division
+        // RAX already contains the dividend (first value)
+
+        a.idiv(divisor); // Perform signed division: RDX:RAX / divisor
+
+        a.sub(ds, 8); // Adjust stack pointer back
+        a.mov(asmjit::x86::qword_ptr(ds), asmjit::x86::rdx); // Store the remainder (RDX) back on stack
+    }
+
+    // Error handler for division by zero
+    static void divide_by_zero()
+    {
+        std::cerr << "Division by zero error in */MOD word." << std::endl;
+        throw std::runtime_error("Division by zero error in */MOD word.");
+    }
+
+    //
+    // static void genStarSlashMod()
+    // {
+    //     if (!jc.assembler)
+    //     {
+    //         throw std::runtime_error("genStarSlashMod: Assembler not initialized");
+    //     }
+    //
+    //     auto& a = *jc.assembler;
+    //     a.comment(" ; ----- genStarSlashMod");
+    //
+    //     // Assuming r15 is the stack pointer
+    //     asmjit::x86::Gp ds = asmjit::x86::r15;
+    //     asmjit::x86::Gp n1 = asmjit::x86::rax;
+    //     asmjit::x86::Gp n2 = asmjit::x86::rbx;
+    //     asmjit::x86::Gp n3 = asmjit::x86::rcx;
+    //     asmjit::x86::Gp remainder = asmjit::x86::rdx; // rdx:rax is used in idiv
+    //     asmjit::x86::Gp quotient = asmjit::x86::rax;
+    //
+    //     asmjit::Label divByZero = a.newLabel();
+    //     asmjit::Label proceed = a.newLabel();
+    //
+    //     // Load n3, n2, and n1 from the stack
+    //     a.mov(n3, asmjit::x86::qword_ptr(ds)); // Top of stack is n3
+    //     a.add(ds, 8); // Move stack pointer up
+    //     a.mov(n2, asmjit::x86::qword_ptr(ds)); // Next value is n2
+    //     a.add(ds, 8); // Move stack pointer up
+    //     a.mov(n1, asmjit::x86::qword_ptr(ds)); // Next value is n1
+    //
+    //     a.comment(" ; Multiply n1 by n2 producing a double-cell result");
+    //
+    //     // Perform multiplication n1 * n2 -> rdx:rax
+    //     a.imul(n2);
+    //
+    //     a.comment(" ; Check for division by zero");
+    //
+    //     // Handle division by zero
+    //     a.test(n3, n3);
+    //     a.jz(divByZero);
+    //
+    //     a.comment(" ; Divide double-cell result by n3");
+    //
+    //     // Divide double-cell result by n3
+    //     a.idiv(n3); // quotient = rax, remainder = rdx
+    //
+    //     a.comment(" ; Push remainder and quotient back onto the stack");
+    //
+    //     // Push remainder and quotient back to stack
+    //     a.sub(ds, 8); // Move stack pointer down
+    //     a.mov(asmjit::x86::qword_ptr(ds), quotient); // Push quotient
+    //     a.sub(ds, 8); // Move stack pointer down
+    //     a.mov(asmjit::x86::qword_ptr(ds), remainder); // Push remainder
+    //
+    //     a.jmp(proceed);
+    //     a.comment("; divide by zero error");
+    //     a.bind(divByZero);
+    //     a.call(divide_by_zero); // Handle division by zero
+    //
+    //     a.bind(proceed);
+    //
+    // }
+
+
+    static void genNegate()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genNegate: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- genNegate");
+
+        // Assuming r15 is the stack pointer
+        asmjit::x86::Gp ds = asmjit::x86::r15;
+        asmjit::x86::Gp value = asmjit::x86::rax;
+
+        a.comment(" ; Negate the top value of the stack");
+        a.mov(value, asmjit::x86::qword_ptr(ds)); // Load the top value
+        a.neg(value); // Negate the value
+        a.mov(asmjit::x86::qword_ptr(ds), value); // Store the result back on stack
+    }
+
+    static void genAbs()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genAbs: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- genAbs");
+
+        // Assuming r15 is the stack pointer
+        asmjit::x86::Gp ds = asmjit::x86::r15;
+        asmjit::x86::Gp value = asmjit::x86::rax;
+
+        a.comment(" ; Absolute value of the top value of the stack");
+        a.mov(value, asmjit::x86::qword_ptr(ds)); // Load the top value
+
+        // If value is negative, negate it
+        a.test(value, value);
+        asmjit::Label positive = a.newLabel();
+        a.jns(positive);
+        a.neg(value);
+        a.bind(positive);
+
+        a.mov(asmjit::x86::qword_ptr(ds), value); // Store the result back on stack
+    }
+
+
+    static void genMin()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genMin: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- genMin");
+
+        // Assuming r15 is the stack pointer
+        asmjit::x86::Gp ds = asmjit::x86::r15;
+        asmjit::x86::Gp firstVal = asmjit::x86::rax;
+        asmjit::x86::Gp secondVal = asmjit::x86::rbx;
+
+        a.comment(" ; Find the minimum of two values from the stack");
+
+        // Pop two values from the stack
+        a.mov(firstVal, asmjit::x86::qword_ptr(ds)); // Load first value
+        a.add(ds, 8); // Adjust stack pointer
+
+        a.mov(secondVal, asmjit::x86::qword_ptr(ds)); // Load second value
+        a.add(ds, 8); // Adjust stack pointer
+
+        // Compare and move the smaller value to firstVal
+        a.cmp(firstVal, secondVal);
+        a.cmovg(firstVal, secondVal);
+
+        a.sub(ds, 8); // Adjust stack pointer back
+        a.mov(asmjit::x86::qword_ptr(ds), firstVal); // Store result back on stack
+    }
+
+
+    static void genMax()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genMax: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- genMax");
+
+        // Assuming r15 is the stack pointer
+        asmjit::x86::Gp ds = asmjit::x86::r15;
+        asmjit::x86::Gp firstVal = asmjit::x86::rax;
+        asmjit::x86::Gp secondVal = asmjit::x86::rbx;
+
+        a.comment(" ; Find the maximum of two values from the stack");
+
+        // Pop two values from the stack
+        a.mov(firstVal, asmjit::x86::qword_ptr(ds)); // Load first value
+        a.add(ds, 8); // Adjust stack pointer
+
+        a.mov(secondVal, asmjit::x86::qword_ptr(ds)); // Load second value
+        a.add(ds, 8); // Adjust stack pointer
+
+        // Compare and move the larger value to firstVal
+        a.cmp(firstVal, secondVal);
+        a.cmovl(firstVal, secondVal);
+
+        a.sub(ds, 8); // Adjust stack pointer back
+        a.mov(asmjit::x86::qword_ptr(ds), firstVal); // Store result back on stack
+    }
+
+
+    static void genWithin()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genWithin: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- genWithin");
+
+        // Assuming r15 is the stack pointer
+        asmjit::x86::Gp ds = asmjit::x86::r15;
+        asmjit::x86::Gp value = asmjit::x86::rax;
+        asmjit::x86::Gp lower_bound = asmjit::x86::rbx;
+        asmjit::x86::Gp upper_bound = asmjit::x86::rcx;
+        asmjit::x86::Gp result = asmjit::x86::rdx;
+
+        asmjit::Label out = a.newLabel();
+
+        // Load the upper bound, lower bound, and value from the stack
+        a.mov(upper_bound, asmjit::x86::qword_ptr(ds)); // Top of stack is upper_bound
+        a.add(ds, 8); // Move stack pointer up
+        a.mov(lower_bound, asmjit::x86::qword_ptr(ds)); // Next value is lower_bound
+        a.add(ds, 8); // Move stack pointer up
+        a.mov(value, asmjit::x86::qword_ptr(ds)); // Next value is value
+
+        a.comment(" ; Check if value is within the bounds");
+
+        // Set result to 0 initially
+        a.xor_(result, result); // result = 0
+
+        a.cmp(value, lower_bound); // compare value with lower bound
+        a.jl(out); // if value < lower_bound, jump to out
+
+        a.cmp(value, upper_bound); // compare value with upper bound
+        a.jge(out); // if value >= upper_bound, jump to out
+
+        a.mov(result, -1); // result = -1 (value is within the range)
+
+        a.bind(out);
+        // Store the result back on the stack
+        a.mov(asmjit::x86::qword_ptr(ds), result);
+    }
 
     // comparisons
 
