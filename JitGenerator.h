@@ -14,7 +14,6 @@
 #include "Quit.h"
 
 
-
 const int INVALID_OFFSET = -9999;
 
 enum LoopType
@@ -142,8 +141,7 @@ inline extern void prim_emit(const uint64_t a)
 
 inline extern void prints(const char* str)
 {
-    fputs(str, stdout);
-    fflush(stdout);
+   std::cout << str;
 }
 
 
@@ -443,7 +441,6 @@ public:
     }
 
 
-
     static void prim_inc_ss()
     {
         sm.incSS();
@@ -468,7 +465,6 @@ public:
         a.sub(asmjit::x86::r12, 8);
         a.mov(asmjit::x86::qword_ptr(asmjit::x86::r12), reg);
     }
-
 
 
     static void prim_dec_ss()
@@ -1096,11 +1092,11 @@ public:
 
     static void prim_string_cat()
     {
-        size_t s1 = sm.popSS();
-        size_t s2 = sm.popSS();
-        sm.pushSS(strIntern.StringCat(s1,s2));
-        strIntern.release(s1);
-        strIntern.release(s2);
+        const size_t s1 = sm.popSS();
+        const size_t s2 = sm.popSS();
+        const size_t s3 = strIntern.StringCat(s2, s1);
+        strIntern.incrementRef(s3);
+        sm.pushSS(s3);
     }
 
     // s+
@@ -1113,11 +1109,8 @@ public:
         auto& a = *jc.assembler;
         commentWithWord(" ; ----- .s+ calls strcat ");
         a.sub(asmjit::x86::rsp, 40);
-        // call puts
         a.call(prim_string_cat);
-        // restore shadow space
         a.add(asmjit::x86::rsp, 40);
-
     }
 
 
@@ -1213,12 +1206,10 @@ public:
         a.sub(asmjit::x86::rsp, 40);
         a.call(prim_sindex);
         a.add(asmjit::x86::rsp, 40);
+
         a.mov(asmjit::x86::rcx, asmjit::x86::rax);
-        // Allocate space for the shadow space
         a.sub(asmjit::x86::rsp, 40);
-        // call puts
         a.call(prints);
-        // restore shadow space
         a.add(asmjit::x86::rsp, 40);
     }
 
@@ -1457,9 +1448,10 @@ public:
 
     static void* prim_sindex(size_t index)
     {
-        return strIntern.getStringAddress(index);
+        auto address = strIntern.getStringAddress(index);
+       // printf("address: %p\n", address);
+        return address;
     }
-
 
 
     static void genForget()

@@ -45,16 +45,17 @@ inline void exec(ForthFunction f)
 }
 
 inline std::string scanForLiterals(const std::string& compileText) {
-    std::regex literalRegex(R"((\w*")\s*(.*?)\")");
+    std::regex literalRegex(R"((\w*")\s(.*?[^\\])\")");
     std::string result;
     std::smatch match;
     std::string tmpText = compileText;
     StringInterner& interner = StringInterner::getInstance();
 
     while (std::regex_search(tmpText, match, literalRegex)) {
-        std::string literalStart = match[1].str();
-        std::string literalString = match[2].str();
+        std::string literalStart = match[1].str();  // s" or ."
+        std::string literalString = match[2].str();  // The literal content after the first space
 
+        // Intern the literal string content
         auto internedPtr = interner.intern(literalString);
         std::ostringstream replacementWord;
         replacementWord << "sPtr_" << reinterpret_cast<std::uintptr_t>(internedPtr);
@@ -68,6 +69,9 @@ inline std::string scanForLiterals(const std::string& compileText) {
 
     return result;
 }
+
+
+
 
 inline void compileWord(const std::string& wordName, const std::string& compileText)
 {
