@@ -78,7 +78,7 @@ public:
         // Add the string to storage and get the index
         size_t index = storage.addString(str);
         intern_map[str] = index;
-        ref_counts[index] = 1;
+        ref_counts[index] = 0;
 
         return index;
     }
@@ -114,6 +114,10 @@ public:
         if (ref_counts.find(index) != ref_counts.end())
         {
             ref_counts[index]--;
+
+            if (ref_counts[index] == 0)
+                ref_counts[index] = 0;
+
             // release string if necessary
             if (ref_counts[index] == 0)
             {

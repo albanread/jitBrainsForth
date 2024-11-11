@@ -1096,7 +1096,11 @@ public:
 
     static void prim_string_cat()
     {
-        sm.pushSS(strIntern.StringCat(sm.popSS(), sm.popSS()));
+        size_t s1 = sm.popSS();
+        size_t s2 = sm.popSS();
+        sm.pushSS(strIntern.StringCat(s1,s2));
+        strIntern.release(s1);
+        strIntern.release(s2);
     }
 
     // s+
@@ -1113,6 +1117,7 @@ public:
         a.call(prim_string_cat);
         // restore shadow space
         a.add(asmjit::x86::rsp, 40);
+
     }
 
 
