@@ -31,27 +31,31 @@ void run_word(const std::string& word)
     }
 }
 
-
 inline void test_against_ds(const std::string& words, const uint64_t expected_top)
 {
-    sm.resetDS(); // to get a clean stack
-    std::cout << "Running: " << words << std::endl;
-    interpreter(words);
+    try {
+        sm.resetDS(); // to get a clean stack
+        std::cout << "Running: " << words << std::endl;
+        interpreter(words);
 
-    uint64_t result = sm.popDS();
-    total_tests++;
-    if (result != expected_top)
-    {
+        uint64_t result = sm.popDS();
+        total_tests++;
+        if (result != expected_top)
+        {
+            failed_tests++;
+            std::cout << "!!!! ---- Failed test: " << words << " Expected: " << expected_top << " but got: " << result << " <<<<< ---- Failed test !!!" << std::endl;
+        }
+        else
+        {
+            passed_tests++;
+            std::cout << "Passed test: " << words << " = " << expected_top << std::endl;
+        }
+    } catch (const std::runtime_error& e) {
         failed_tests++;
-        std::cout << "!!!! ---- Failed test: " << words << " Expected: " << expected_top << " but got: " << result <<
-            "<<<<< ---- Failed test !!!" << std::endl;
-    }
-    else
-    {
-        passed_tests++;
-        std::cout << "Passed test: " << words << " = " << expected_top << std::endl;
+        std::cout << "!!!! ---- Exception occurred: " << e.what() << " for test: " << words << " <<<<< ---- Failed test !!!" << std::endl;
     }
 }
+
 
 
 inline void testCompileAndRun(const std::string& wordName,
@@ -279,6 +283,25 @@ void run_basic_tests()
                       5);
 
 
+    test_against_ds(" 20 value test test ", 20);
+
+    testCompileAndRun("testValues",
+                      " test   ",
+                      " testValues ",
+                      20);
+
+    testCompileAndRun("testValues",
+                      " 30 to test test  ",
+                      " testValues ",
+                      30);
+
+    test_against_ds(" variable tim 10 tim ! tim @ ", 10);
+
+    testCompileAndRun("testVariables",
+                      " 30 to tim tim @ ",
+                      "  testVariables ",
+                      30);
+
     testCompileAndRun("testLocals",
                       " { a b } a b + ",
                       " 10 1 testLocals ",
@@ -303,19 +326,28 @@ void run_basic_tests()
     test_against_ds(" 4 9 MIN ", 4); // min(4, 9) = 4
     test_against_ds(" 15 5 MAX ", 15); // max(15, 5) = 15
 
-    test_against_ds(" 5 1 10 WITHIN ", -1);   // 5 is within the range [1, 10), should return -1 (true)
-    test_against_ds(" 0 1 10 WITHIN ", 0);   // 0 is not within the range [1, 10), should return 0 (false)
-    test_against_ds(" 10 1 10 WITHIN ", 0);  // 10 is not within the range [1, 10), should return 0 (false)
-    test_against_ds(" 15 1 10 WITHIN ", 0);  // 15 is not within the range [1, 10), should return 0 (false)
-    test_against_ds(" 5 5 10 WITHIN ", -1);   // 5 is within the range [5, 10), should return -1 (true)
+    test_against_ds(" 5 1 10 WITHIN ", -1); // 5 is within the range [1, 10), should return -1 (true)
+    test_against_ds(" 0 1 10 WITHIN ", 0); // 0 is not within the range [1, 10), should return 0 (false)
+    test_against_ds(" 10 1 10 WITHIN ", 0); // 10 is not within the range [1, 10), should return 0 (false)
+    test_against_ds(" 15 1 10 WITHIN ", 0); // 15 is not within the range [1, 10), should return 0 (false)
+    test_against_ds(" 5 5 10 WITHIN ", -1); // 5 is within the range [5, 10), should return -1 (true)
 
     test_against_ds(" CHAR a  ", 97);
 
     testCompileAndRun("testChar",
-                   " CHAR A",
+                      " CHAR A",
 
-                   " testChar ",
-                   65);
+                      " testChar ",
+                      65);
+
+
+    test_against_ds(" 7 constant daysInWeek daysInWeek ", 7);
+
+    // test_against_ds(" 12 to daysInWeek daysInWeek ", 7);
+
+    // tidy
+    test_against_ds(" forget forget forget forget 10 ", 10);
+
 
     // Print summary after running tests
     std::cout << "\nTest results:" << std::endl;
