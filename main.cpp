@@ -119,6 +119,9 @@ void add_words()
 
     d.addWord(".\"", nullptr, nullptr, JitGenerator::genImmediateDotQuote, nullptr);
     d.addWord("s\"", nullptr, nullptr, JitGenerator::genImmediateSQuote, JitGenerator::genTerpImmediateSQuote);
+
+    d.addWord("s+", JitGenerator::genStringCat, JitGenerator::build_forth(JitGenerator::genStringCat), nullptr, nullptr);
+
     d.addWord("sprint", JitGenerator::genPrint, JitGenerator::build_forth(JitGenerator::genPrint), nullptr, nullptr);
 
     d.addWord("value", nullptr, nullptr, nullptr, JitGenerator::genImmediateValue);

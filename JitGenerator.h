@@ -1094,6 +1094,28 @@ public:
     }
 
 
+    static void prim_string_cat()
+    {
+        sm.pushSS(strIntern.StringCat(sm.popSS(), sm.popSS()));
+    }
+
+    // s+
+    static void genStringCat()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("entryFunction: Assembler not initialized");
+        }
+        auto& a = *jc.assembler;
+        commentWithWord(" ; ----- .s+ calls strcat ");
+        a.sub(asmjit::x86::rsp, 40);
+        // call puts
+        a.call(prim_string_cat);
+        // restore shadow space
+        a.add(asmjit::x86::rsp, 40);
+    }
+
+
     static size_t stripIndex(const std::string& token)
     {
         std::string prefix = "sPtr_";
