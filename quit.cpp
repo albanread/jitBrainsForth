@@ -85,35 +85,25 @@ void Quit()
     sm.resetSS();
     sm.resetRS();
 
-    if (setjmp(jumpBuffer))
-    {
-        // This code is executed after longjmp is called
-        std::cerr << "jumped back to Quit function" << std::endl;
-        sm.resetDS();
-        sm.resetLS();
-        sm.resetSS();
-        sm.resetRS();
-    }
-    else
-    {
-        while (true)
-        {
-            try
-            {
-                interactive_terminal();
-            }
-            catch (const AccessViolationException& e)
-            {
-                std::cerr << e.what() << std::endl;
-                // Reset context and stack as required
-            }
-            catch (const std::exception& e)
-            {
-                std::cerr << "Runtime error: " << e.what() << std::endl;
-                // Reset context and stack as required
-            }
-        }
 
-        RemoveVectoredExceptionHandler(handler);
+    while (true)
+    {
+        try
+        {
+
+            interactive_terminal();
+        }
+        catch (const AccessViolationException& e)
+        {
+            std::cerr << e.what() << std::endl;
+            // Reset context and stack as required
+        }
+        catch (const std::exception& e)
+        {
+            std::cerr << "Runtime error: " << e.what() << std::endl;
+            // Reset context and stack as required
+        }
     }
+
+    RemoveVectoredExceptionHandler(handler);
 }

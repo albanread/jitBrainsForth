@@ -4,11 +4,11 @@
 
 #ifndef TESTS_H
 #define TESTS_H
-int total_tests = 0;
-int passed_tests = 0;
-int failed_tests = 0;
+inline int total_tests = 0;
+inline int passed_tests = 0;
+inline int failed_tests = 0;
 
-void run_word(const std::string& word)
+inline void run_word(const std::string& word)
 {
     ForthWord* w = d.findWord(word.c_str());
     if (w == nullptr)
@@ -30,6 +30,9 @@ void run_word(const std::string& word)
         w->compiledFunc();
     }
 }
+
+void interpreter(const std::string& sourceCode);
+void compileWord(const std::string& wordName, const std::string& compileText, const std::string& sourceCode);
 
 inline void test_against_ds(const std::string& words, const uint64_t expected_top)
 {

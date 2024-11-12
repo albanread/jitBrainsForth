@@ -74,7 +74,7 @@ public:
     // Interns a string and returns its index.
     size_t intern(const std::string& str)
     {
-        printf("Interning: %s\n", str.c_str());
+
         std::lock_guard<std::mutex> lock(mutex_);
         auto it = intern_map.find(str);
         if (it != intern_map.end())

@@ -1286,7 +1286,7 @@ public:
         size_t pos = jc.pos_next_word + 1;
         std::string word = words[pos];
         jc.word = word;
-        printf("genImmediateSQuote: %s\n", word.c_str());
+
         auto address = stripIndex(word);
 
         if (!jc.assembler)
@@ -1331,7 +1331,7 @@ public:
         size_t pos = jc.pos_next_word + 1;
         std::string word = words[pos];
         jc.word = word;
-        printf("genImmediateSQuote: %s\n", word.c_str());
+
         auto address = stripIndex(word);
         sm.pushSS(reinterpret_cast<uint64_t>(address));
         jc.pos_last_word = pos;

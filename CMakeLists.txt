@@ -27,6 +27,10 @@ add_executable(jitBrainsForth
 
 )
 
+add_custom_command(TARGET jitBrainsForth POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_SOURCE_DIR}/start.f $<TARGET_FILE_DIR:jitBrainsForth>/start.f)
+
 # Include directories for asmjit
 target_include_directories(jitBrainsForth PRIVATE ${PROJECT_SOURCE_DIR}/include)
 target_link_libraries(jitBrainsForth PRIVATE ${PROJECT_SOURCE_DIR}/libs/libasmjit.dll.a)

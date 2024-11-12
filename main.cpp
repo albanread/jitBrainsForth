@@ -3,8 +3,7 @@
 #include "JitContext.h"
 #include "ForthDictionary.h"
 #include "JitGenerator.h"
-#include "interpreter.h"
-#include "tests.h"
+
 #include "quit.h"
 
 
@@ -166,15 +165,8 @@ void add_words()
     // needs more thought.
     //d.addWord("abort\"", nullptr, nullptr, JitGenerator::genImmediateAbortQuote, nullptr);
 
-    // define words in forth
-    interpreter(": space 32 emit ;");
-    interpreter(": spaces 0 do space loop ;");
-    interpreter(": cr 13 emit 10 emit ;");
-    interpreter(": sq dup * ;");
-    interpreter(" -1 constant TRUE");
-    interpreter(" 0 constant FALSE");
-    interpreter(": fact dup 2 < if drop 1 exit then dup begin dup 2 > while 1- swap over * swap repeat drop ;");
-    interpreter(": rfact  DUP 2 < IF DROP 1 EXIT THEN  DUP 1- RECURSE * ;");
+
+
 
 }
 
@@ -183,6 +175,5 @@ int main()
 {
     jc.loggingOFF();
     add_words();
-    run_basic_tests();
     Quit();
 }
