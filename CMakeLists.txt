@@ -23,6 +23,8 @@ add_executable(jitBrainsForth
         tests.h
         quit.cpp
         StringInterner.h
+        Compiler.h
+        CompilerUtility.h
 
 
 )

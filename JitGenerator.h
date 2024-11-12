@@ -149,8 +149,14 @@ inline extern void throw_with_string(const char* str)
     throw std::runtime_error(str);
 }
 
-
+//
 static bool logging = false;
+
+inline void checkLogging()
+{
+    logging=jc.logging;
+}
+
 
 // using ExecFunc = void (*)(ForthFunction);
 // ExecFunc exec;
