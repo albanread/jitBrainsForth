@@ -1,10 +1,10 @@
 #include <iostream>
-
 #include "JitContext.h"
 #include "ForthDictionary.h"
 #include "JitGenerator.h"
-
 #include "quit.h"
+#include "UtilitySDL.h"
+#include <bits/std_thread.h>
 
 
 JitGenerator& gen = JitGenerator::getInstance();
@@ -182,10 +182,21 @@ void add_words()
 
 }
 
+typedef void* HINSTANCE;
+typedef char* LPSTR;
+int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
 
-int main()
-{
     jc.loggingOFF();
     add_words();
-    Quit();
+
+    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+        std::cerr << "Unable to initialize SDL: " << SDL_GetError() << std::endl;
+        return 1;
+    }
+
+    std::thread sdlThread(sdl_main_loop);
+    std::thread terminalThread(Quit());
+
+
+    return 0;
 }

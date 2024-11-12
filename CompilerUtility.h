@@ -206,7 +206,6 @@ inline void interpreterProcessWord(const std::string& word, size_t& i, const std
     {
         try
         {
-            printf("!!!! Pushing number: %s\n", word.c_str());
             const uint64_t number = parseNumber(word);
             sm.pushDS(number);
             if (logging) printf("Pushing %s\n", word.c_str());

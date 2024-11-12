@@ -5,6 +5,7 @@
 #include "quit.h"
 #include "interpreter.h"
 #include <csetjmp>
+#include <bits/std_thread.h>
 
 
 // Define the WINAPI macro
@@ -76,7 +77,7 @@ bool escapePressed()
 }
 
 
-void Quit()
+std::thread Quit()
 {
     PVOID handler = AddVectoredExceptionHandler(1, VectoredHandler);
     //
