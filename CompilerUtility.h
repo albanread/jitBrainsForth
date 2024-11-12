@@ -2,11 +2,12 @@
 #define COMPILERUTILITY_H
 #include <iostream>
 #include <unordered_set>
-
-
 #include "ForthDictionary.h"
 #include "JitGenerator.h"
 #include "StringInterner.h"
+
+// Declaration of compileWord function
+void compileWord(const std::string& wordName, const std::string& compileText, const std::string& sourceCode);
 
 // Traced words set
 inline std::unordered_set<std::string> tracedWords;
@@ -37,6 +38,41 @@ inline void exec(ForthFunction f)
 {
     clearR15();
     f();
+}
+
+
+inline int64_t parseNumber(const std::string& word) {
+    if (word.empty()) {
+        throw std::invalid_argument("Empty string is not a valid number");
+    }
+
+    size_t startIndex = 0;
+    bool isNegative = false;
+
+    // Check for an optional leading minus sign for decimal numbers
+    if (word[0] == '-') {
+        isNegative = true;
+        startIndex = 1;
+    }
+
+    // Handle hexadecimal and binary prefixes
+    if (startIndex + 2 < word.length() && word[startIndex] == '0') {
+        if (word[startIndex + 1] == 'x' || word[startIndex + 1] == 'X') {
+            return std::stoull(word.substr(startIndex), nullptr, 16); // Hexadecimal (unsigned)
+        } else if (word[startIndex + 1] == 'b' || word[startIndex + 1] == 'B') {
+            return std::stoull(word.substr(startIndex + 2), nullptr, 2); // Binary (unsigned)
+        }
+    }
+
+    // Default to decimal
+    int64_t number = std::stoll(word.substr(startIndex), nullptr, 10); // Decimal
+
+    // Apply the negative sign if necessary
+    if (isNegative) {
+        number = -number;
+    }
+
+    return number;
 }
 
 // also removes comments between ( and )
@@ -129,6 +165,7 @@ inline void handleCompileMode(size_t& i, const std::vector<std::string>& words, 
         throw std::runtime_error("Interpreter Error: No ending ';' found for word definition.");
     }
 
+
     compileWord(wordName, compileText, sourceCode);
 
     ++i;
@@ -169,7 +206,8 @@ inline void interpreterProcessWord(const std::string& word, size_t& i, const std
     {
         try
         {
-            const uint64_t number = std::stoll(word.c_str());
+            printf("!!!! Pushing number: %s\n", word.c_str());
+            const uint64_t number = parseNumber(word);
             sm.pushDS(number);
             if (logging) printf("Pushing %s\n", word.c_str());
         }

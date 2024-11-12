@@ -4,6 +4,10 @@
 
 #ifndef TESTS_H
 #define TESTS_H
+#include <iostream>
+#include <string>
+#include "CompilerUtility.h"
+
 inline int total_tests = 0;
 inline int passed_tests = 0;
 inline int failed_tests = 0;
@@ -15,8 +19,7 @@ inline void run_word(const std::string& word)
     {
         if (is_number(word))
         {
-            uint64_t num = std::stoll(word);
-            //printf("Pushing number: %llu\n", num);
+            uint64_t num = parseNumber(word);
             sm.pushDS(num);
         }
         else
@@ -106,6 +109,8 @@ inline void testInterpreter(const std::string& test_name, const std::string& tes
 
 void run_basic_tests()
 {
+    test_against_ds(" 0b10000000  ", 128);
+    test_against_ds(" 0x64  ", 100);
     test_against_ds(" 16 ", 16);
     test_against_ds(" 16 16 + ", 32);
     test_against_ds(" 1 2 3 + + ", 6);

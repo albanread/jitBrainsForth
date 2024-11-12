@@ -56,6 +56,7 @@ inline std::string trim(const std::string& str)
     return str.substr(first, (last - first + 1));
 }
 
+
 inline bool is_number(const std::string& s)
 {
     if (s.empty()) return false;
@@ -68,6 +69,27 @@ inline bool is_number(const std::string& s)
         startIndex = 1;
     }
 
+    if (startIndex + 2 < s.length() && s[startIndex] == '0')
+    {
+        if (s[startIndex + 1] == 'x' || s[startIndex + 1] == 'X') // Hexadecimal check
+        {
+            for (size_t i = startIndex + 2; i < s.length(); ++i)
+            {
+                if (!std::isxdigit(s[i])) return false;
+            }
+            return true;
+        }
+        else if (s[startIndex + 1] == 'b' || s[startIndex + 1] == 'B') // Binary check
+        {
+            for (size_t i = startIndex + 2; i < s.length(); ++i)
+            {
+                if (s[i] != '0' && s[i] != '1') return false;
+            }
+            return true;
+        }
+    }
+
+    // Decimal check
     for (size_t i = startIndex; i < s.length(); ++i)
     {
         if (!std::isdigit(s[i])) return false;
@@ -75,7 +97,6 @@ inline bool is_number(const std::string& s)
 
     return true;
 }
-
 
 inline std::vector<std::string> split(const std::string& str)
 {

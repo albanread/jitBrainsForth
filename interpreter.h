@@ -131,27 +131,42 @@ inline void slurpIn(const std::string& file_name = "start.f")
     }
 }
 
-inline std::string handleSpecialCommands(const std::string& input) {
-
+inline std::string handleSpecialCommands(const std::string& input)
+{
     bool handled = false;
 
-    if (input == "*MEM" || input == "*mem") {
+    if (input == "*MEM" || input == "*mem")
+    {
         jc.reportMemoryUsage();
         handled = true;
-    } else if (input == "*TESTS" || input == "*tests") {
+    }
+    else if (input == "*TESTS" || input == "*tests")
+    {
         run_basic_tests();
         handled = true;
-    } else if (input == "*STRINGS" || input == "*strings") {
+    }
+    else if (input == "*STRINGS" || input == "*strings")
+    {
         strIntern.display_list();
         handled = true;
-    } else if (input == "*QUIT" || input == "*quit") {
+    }
+    else if (input == "*QUIT" || input == "*quit")
+    {
         exit(0);
-    } else if (input == "*LOGGINGON" || input == "*loggingon") {
+    }
+    else if (input == "*LOGGINGON" || input == "*loggingon")
+    {
         jc.loggingON();
         handled = true;
     }
+    else if (input == "*LOGGINGOFF" || input == "*loggingoff")
+    {
+        jc.loggingOFF();
+        handled = true;
+    }
 
-    if (handled) {
+    if (handled)
+    {
         // Remove the handled command from the input
         return "";
     }
@@ -159,23 +174,31 @@ inline std::string handleSpecialCommands(const std::string& input) {
     return input;
 }
 
-inline bool processTraceCommands(auto& it, const auto& words, std::string& accumulated_input) {
+inline bool processTraceCommands(auto& it, const auto& words, std::string& accumulated_input)
+{
     const auto& word = *it;
-    if (word == "*TRON" || word == "*tron" || word == "*TROFF" || word == "*troff") {
+    if (word == "*TRON" || word == "*tron" || word == "*TROFF" || word == "*troff")
+    {
         auto command = word;
         ++it; // Advance the iterator
-        if (it != words.end()) {
+        if (it != words.end())
+        {
             const auto& nextWord = *it;
-            if (command == "*TRON" || command == "*tron") {
+            if (command == "*TRON" || command == "*tron")
+            {
                 if (!nextWord.empty())
                     traceOn(nextWord);
-            } else if (command == "*TROFF" || command == "*troff") {
+            }
+            else if (command == "*TROFF" || command == "*troff")
+            {
                 if (!nextWord.empty())
                     traceOff(nextWord);
             }
             // Remove `command` and `nextWord` from accumulated_input
             accumulated_input.erase(accumulated_input.find(command), command.length() + nextWord.length() + 2);
-        } else {
+        }
+        else
+        {
             std::cerr << "Error: Expected name of word to trace after " << command << std::endl;
         }
         return true; // Processed trace command
@@ -183,22 +206,30 @@ inline bool processTraceCommands(auto& it, const auto& words, std::string& accum
     return false; // Not a trace command
 }
 
-inline bool processLoopCheckCommands(auto& it, const auto& words, std::string& accumulated_input) {
+inline bool processLoopCheckCommands(auto& it, const auto& words, std::string& accumulated_input)
+{
     const auto& word = *it;
-    if (word == "*LOOPCHECK" || word == "*loopcheck") {
+    if (word == "*LOOPCHECK" || word == "*loopcheck")
+    {
         // get next word
         ++it;
-        if (it != words.end()) {
+        if (it != words.end())
+        {
             const auto& nextWord = *it;
-            if (nextWord == "ON" || nextWord == "on") {
+            if (nextWord == "ON" || nextWord == "on")
+            {
                 // display loop checking on
                 std::cout << "Loop checking ON" << std::endl;
                 jc.loopCheckON();
-            } else if (nextWord == "OFF" || nextWord == "off") {
+            }
+            else if (nextWord == "OFF" || nextWord == "off")
+            {
                 // display loop checking off
                 std::cout << "Loop checking OFF" << std::endl;
                 jc.loopCheckOFF();
-            } else {
+            }
+            else
+            {
                 std::cerr << "Error: Expected argument (on,off) after " << word << std::endl;
             }
             // Remove `command` and `nextWord` from accumulated_input
@@ -209,35 +240,47 @@ inline bool processLoopCheckCommands(auto& it, const auto& words, std::string& a
     return false; // Not a loop check command
 }
 
-inline bool processDumpCommands(auto& it, const auto& words, std::string& accumulated_input) {
+inline bool processDumpCommands(auto& it, const auto& words, std::string& accumulated_input)
+{
     const auto& word = *it;
-    if (word == "*dump" || word == "*DUMP") {
+    if (word == "*dump" || word == "*DUMP")
+    {
         // Get the next word
         ++it;
-        if (it != words.end()) {
+        if (it != words.end())
+        {
             const auto& addrStr = *it;
             uintptr_t address;
 
-            try {
-                if (addrStr.find("0x") != std::string::npos || addrStr.find("0X") != std::string::npos) {
+            try
+            {
+                if (addrStr.find("0x") != std::string::npos || addrStr.find("0X") != std::string::npos)
+                {
                     // Address is in hexadecimal
                     address = std::stoull(addrStr, nullptr, 16);
-                } else {
+                }
+                else
+                {
                     // Address is in decimal
                     address = std::stoull(addrStr, nullptr, 10);
                 }
 
                 // Cast the address to a void pointer and call dump
                 dump(reinterpret_cast<void*>(address));
-            } catch (const std::invalid_argument& e) {
+            }
+            catch (const std::invalid_argument& e)
+            {
                 std::cerr << "Error: Invalid address format" << std::endl;
-            } catch (const std::out_of_range& e) {
+            } catch (const std::out_of_range& e)
+            {
                 std::cerr << "Error: Address out of range" << std::endl;
             }
 
             // Remove `command` and `nextWord` from accumulated_input
             accumulated_input.erase(accumulated_input.find(word), word.length() + addrStr.length() + 2);
-        } else {
+        }
+        else
+        {
             std::cerr << "Error: Expected address after " << word << std::endl;
         }
         return true; // Processed dump command
@@ -245,25 +288,29 @@ inline bool processDumpCommands(auto& it, const auto& words, std::string& accumu
     return false; // Not a dump command
 }
 
-inline void interactive_terminal() {
+inline void interactive_terminal()
+{
     std::string input;
     std::string accumulated_input;
     bool compiling = false;
     slurpIn("start.f");
 
     // The infinite terminal loop
-    while (true) {
+    while (true)
+    {
         std::cout << (compiling ? "] " : "> ");
         std::getline(std::cin, input); // Read a line of input from the terminal
 
-        if (input == "QUIT" || input == "quit") {
+        if (input == "QUIT" || input == "quit")
+        {
             sm.resetDS();
             break; // Exit the loop if the user enters QUIT
         }
 
-        input=handleSpecialCommands(input);
+        input = handleSpecialCommands(input);
 
-        if (input.empty()) {
+        if (input.empty())
+        {
             continue;
         }
 
@@ -272,28 +319,36 @@ inline void interactive_terminal() {
         auto words = split(input);
 
         // Check if compiling is required based on the input
-        for (auto it = words.begin(); it != words.end(); ++it) {
+        for (auto it = words.begin(); it != words.end(); ++it)
+        {
             const auto& word = *it;
 
-            if (word == "QUIT" || word == "quit") {
+            if (word == "QUIT" || word == "quit")
+            {
                 break;
             }
 
-            if (processTraceCommands(it, words, accumulated_input)) {
+            if (processTraceCommands(it, words, accumulated_input))
+            {
                 continue;
             }
 
-            if (processLoopCheckCommands(it, words, accumulated_input)) {
+            if (processLoopCheckCommands(it, words, accumulated_input))
+            {
                 continue;
             }
 
-            if (processDumpCommands(it, words, accumulated_input)) {
+            if (processDumpCommands(it, words, accumulated_input))
+            {
                 continue;
             }
 
-            if (word == ":") {
+            if (word == ":")
+            {
                 compiling = true;
-            } else if (word == ";") {
+            }
+            else if (word == ";")
+            {
                 compiling = false;
                 interpreter(accumulated_input);
                 accumulated_input.clear();
@@ -301,7 +356,8 @@ inline void interactive_terminal() {
             }
         }
 
-        if (!compiling) {
+        if (!compiling)
+        {
             interpreter(accumulated_input); // Process the accumulated input using the outer_interpreter
             accumulated_input.clear();
             std::cout << " Ok" << std::endl;
