@@ -32,6 +32,7 @@ inline std::string ForthWordStateToString(const ForthWordState state)
     case COMPILE_ONLY: return "COMPILE_ONLY";
     case INTERPRET_ONLY: return "INTERPRET_ONLY";
     case COMPILE_ONLY_IMMEDIATE: return "COMPILE_ONLY_IMMEDIATE";
+    case INTERPRET_ONLY_IMMEDIATE: return "INTERPRET_ONLY_IMMEDIATE";
     default: return "UNKNOWN";
     }
 }
