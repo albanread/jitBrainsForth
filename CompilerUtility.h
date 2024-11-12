@@ -11,13 +11,13 @@
 // Traced words set
 inline std::unordered_set<std::string> tracedWords;
 
-inline void traceon(const std::string& word)
+inline void traceOn(const std::string& word)
 {
     tracedWords.insert(word);
     std::cout << "Tracing enabled for: " << word << std::endl;
 }
 
-inline void traceoff(const std::string& word)
+inline void traceOff(const std::string& word)
 {
     tracedWords.erase(word);
     std::cout << "Tracing disabled for: " << word << std::endl;
@@ -135,7 +135,7 @@ inline void handleCompileMode(size_t& i, const std::vector<std::string>& words, 
 }
 
 // Function to process each word
-inline void processWord(const std::string& word, size_t& i, const std::vector<std::string>& words)
+inline void interpreterProcessWord(const std::string& word, size_t& i, const std::vector<std::string>& words)
 {
     auto* fword = d.findWord(word.c_str());
 

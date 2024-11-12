@@ -33,7 +33,7 @@ inline void interpreter(const std::string& sourceCode)
         }
         else
         {
-            processWord(word, i, words);
+            interpreterProcessWord(word, i, words);
         }
         ++i;
     }
@@ -130,23 +130,33 @@ inline void slurpIn(const std::string& file_name = "start.f")
         // Reset context and stack as required
     }
 }
-inline void handleSpecialCommands(const std::string& input) {
+
+inline std::string handleSpecialCommands(const std::string& input) {
+
+    bool handled = false;
+
     if (input == "*MEM" || input == "*mem") {
         jc.reportMemoryUsage();
-    }
-    else if (input == "*TESTS" || input == "*tests") {
+        handled = true;
+    } else if (input == "*TESTS" || input == "*tests") {
         run_basic_tests();
-    }
-    else if (input == "*STRINGS" || input == "*strings") {
+        handled = true;
+    } else if (input == "*STRINGS" || input == "*strings") {
         strIntern.display_list();
-    }
-    else if (input == "*QUIT" || input == "*quit") {
+        handled = true;
+    } else if (input == "*QUIT" || input == "*quit") {
         exit(0);
-    }
-    else if (input == "*LOGGINGON" || input == "*loggingon")
-    {
+    } else if (input == "*LOGGINGON" || input == "*loggingon") {
         jc.loggingON();
+        handled = true;
     }
+
+    if (handled) {
+        // Remove the handled command from the input
+        return "";
+    }
+    // If no command was handled, return the original input
+    return input;
 }
 
 inline bool processTraceCommands(auto& it, const auto& words, std::string& accumulated_input) {
@@ -158,10 +168,10 @@ inline bool processTraceCommands(auto& it, const auto& words, std::string& accum
             const auto& nextWord = *it;
             if (command == "*TRON" || command == "*tron") {
                 if (!nextWord.empty())
-                    traceon(nextWord);
+                    traceOn(nextWord);
             } else if (command == "*TROFF" || command == "*troff") {
                 if (!nextWord.empty())
-                    traceoff(nextWord);
+                    traceOff(nextWord);
             }
             // Remove `command` and `nextWord` from accumulated_input
             accumulated_input.erase(accumulated_input.find(command), command.length() + nextWord.length() + 2);
@@ -251,7 +261,7 @@ inline void interactive_terminal() {
             break; // Exit the loop if the user enters QUIT
         }
 
-        handleSpecialCommands(input);
+        input=handleSpecialCommands(input);
 
         if (input.empty()) {
             continue;
