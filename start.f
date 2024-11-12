@@ -1,18 +1,12 @@
 ( start.f define some common words )
 
-s" loading start.f " sprint
+: space 32 emit ;
 
-: space
-    32 emit ;
+: spaces do space loop ;
 
-: spaces
-    do space loop ;
+: cr  13 emit 10 emit ;
 
-: cr
-    13 emit 10 emit ;
-
-: sq
-    dup * ;
+: sq dup * ;
 
 -1 constant TRUE
 
@@ -30,3 +24,5 @@ s" loading start.f " sprint
     drop ;
 
 : rfact  DUP 2 < IF DROP 1 EXIT THEN  DUP 1- RECURSE * ;
+
+s" loaded start.f " sprint cr

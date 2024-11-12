@@ -405,6 +405,13 @@ void run_basic_tests()
                       " 5 rfactTest",
                       120);
 
+    testCompileAndRun("strposTest",
+                      R"(s" 1 2 3 4 5 6 7 8 " s" 6 " strpos 10 =)",
+                      " strposTest",
+                      -1);
+
+    test_against_ds(R"(s" 1 2 3 4 5 6 7 8 " s" 6 " strpos)", 10);
+
 
     // Print summary after running tests
     std::cout << "\nTest results:" << std::endl;

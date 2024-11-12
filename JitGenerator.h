@@ -154,7 +154,7 @@ static bool logging = false;
 
 inline void checkLogging()
 {
-    logging=jc.logging;
+    logging = jc.logging;
 }
 
 
@@ -1226,6 +1226,72 @@ public:
         commentWithWord(" ; ----- .s+ calls strcat ");
         a.sub(asmjit::x86::rsp, 40);
         a.call(prim_string_cat);
+        a.add(asmjit::x86::rsp, 40);
+    }
+
+    static void prim_str_pos()
+    {
+        const size_t s1 = sm.popSS();
+        const size_t s2 = sm.popSS();
+        const int pos = strIntern.StrPos(s1, s2);
+        sm.pushDS(static_cast<size_t>(pos));
+    }
+
+    static void genStrPos()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("entryFunction: Assembler not initialized");
+        }
+        auto& a = *jc.assembler;
+        commentWithWord(" ; ----- .pos calls strpos ");
+        a.sub(asmjit::x86::rsp, 40);
+        a.call(prim_str_pos);
+        a.add(asmjit::x86::rsp, 40);
+    }
+
+    static void prim_string_field()
+    {
+        const size_t s1 = sm.popSS();
+        const size_t delimiter = sm.popSS();
+        const size_t position = sm.popDS();
+        const size_t result = strIntern.StringSplit( delimiter, s1, position);
+        strIntern.incrementRef(result);
+        sm.pushSS(result);
+    }
+
+    // extract a field.
+    static void genStringField()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("entryFunction: Assembler not initialized");
+        }
+        auto& a = *jc.assembler;
+        commentWithWord(" ; ----- .split calls string split ");
+        a.sub(asmjit::x86::rsp, 40);
+        a.call(prim_string_field);
+        a.add(asmjit::x86::rsp, 40);
+    }
+
+    static void prim_count_fields()
+    {
+        const size_t s1 = sm.popSS();
+        const size_t s2 = sm.popSS();
+        const size_t count = strIntern.CountFields(s2, s1);
+        sm.pushDS(count);
+    }
+
+    static void genCountFields()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("entryFunction: Assembler not initialized");
+        }
+        auto& a = *jc.assembler;
+        commentWithWord(" ; ----- .count calls count fields ");
+        a.sub(asmjit::x86::rsp, 40);
+        a.call(prim_count_fields);
         a.add(asmjit::x86::rsp, 40);
     }
 

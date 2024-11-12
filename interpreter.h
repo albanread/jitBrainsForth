@@ -73,6 +73,7 @@ inline void interpretText(const std::string& text)
             else if (word == ";")
             {
                 compiling = false;
+                //printf("Interpret text : [%s]\n", accumulated_input.c_str());
                 interpreter(accumulated_input);
                 accumulated_input.clear();
                 break;

@@ -177,11 +177,89 @@ public:
     }
 
     // Concatenate two strings by their indices and intern the result.
-    size_t StringCat(size_t index1, size_t index2)
+    size_t StringCat(const size_t index1, const size_t index2)
     {
         const std::string newStr = getString(index1) + getString(index2);
         return intern(newStr);
     }
+
+    // Compare two strings by their indices to check if they are the same.
+    bool StrEqual(const size_t index1, const size_t index2) const
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return getString(index1) == getString(index2);
+    }
+
+    bool StrContains(size_t index1, size_t index2) const
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return getString(index1).find(getString(index2)) != std::string::npos;
+    }
+
+    // Return the position of the string at index1 within the string at index2, or -1 if not found.
+    int StrPos(size_t index1, size_t index2) const
+    {
+        size_t pos = getString(index2).find(getString(index1));
+        return (pos != std::string::npos) ? static_cast<int>(pos) : -1;
+    }
+
+
+    // Split the string at index1 by the string at index2 and return the interned string at the given position.
+    size_t StringSplit(size_t index1, size_t delimiterIndex, size_t position)
+    {
+
+        std::string str = getString(index1);
+        std::string delimiter = getString(delimiterIndex);
+        size_t start = 0;
+        size_t end = 0;
+        size_t current_pos = 0;
+
+        while ((end = str.find(delimiter, start)) != std::string::npos)
+        {
+            if (current_pos == position)
+            {
+                return intern(str.substr(start, end - start));
+            }
+            start = end + delimiter.length();
+            ++current_pos;
+        }
+
+        if (current_pos == position)
+        {
+            return intern(str.substr(start));
+        }
+
+        throw std::out_of_range("Position exceeds the number of substrings");
+    }
+
+
+    // Count the number of fields in the string at index1 that would result from splitting by the string at delimiterIndex.
+    size_t CountFields(size_t index1, size_t delimiterIndex) const
+    {
+        std::string str = getString(index1);
+        std::string delimiter = getString(delimiterIndex);
+        size_t field_count = 0;
+        size_t start = 0;
+        size_t end = 0;
+
+        while ((end = str.find(delimiter, start)) != std::string::npos)
+        {
+            ++field_count;
+            start = end + delimiter.length();
+        }
+
+        // Account for the last field after the final delimiter
+        if (start < str.length())
+        {
+            ++field_count;
+        }
+
+        return field_count;
+    }
+
+
+
+
 
 private:
     StringInterner() = default; // Private constructor for singleton.

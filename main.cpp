@@ -141,8 +141,22 @@ void add_words()
     d.addWord(".\"", nullptr, nullptr, JitGenerator::genImmediateDotQuote, nullptr);
     d.addWord("s\"", nullptr, nullptr, JitGenerator::genImmediateSQuote, JitGenerator::genTerpImmediateSQuote);
 
+    // string functions
+
     d.addWord("s+", JitGenerator::genStringCat, JitGenerator::build_forth(JitGenerator::genStringCat), nullptr,
               nullptr);
+
+    d.addWord("strpos", JitGenerator::genStrPos, JitGenerator::build_forth(JitGenerator::genStrPos), nullptr,
+              nullptr);
+
+    // return number of string fields. s" 1,2,3,4,5,6,7,8" s" ," =8
+    d.addWord("strFields", JitGenerator::genCountFields, JitGenerator::build_forth(JitGenerator::genCountFields), nullptr,
+               nullptr);
+
+    // return the field from the string at the position. s" 1,2,3,4,5,6,7,8,9,10 " s" ," 4 strField  =
+    d.addWord("strField", JitGenerator::genStringField, JitGenerator::build_forth(JitGenerator::genStringField), nullptr,
+            nullptr);
+
 
     d.addWord("sprint", JitGenerator::genPrint, JitGenerator::build_forth(JitGenerator::genPrint), nullptr, nullptr);
 
@@ -164,8 +178,6 @@ void add_words()
 
     // needs more thought.
     //d.addWord("abort\"", nullptr, nullptr, JitGenerator::genImmediateAbortQuote, nullptr);
-
-
 
 
 }
