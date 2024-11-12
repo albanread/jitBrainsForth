@@ -17,17 +17,17 @@ StringInterner& interner = StringInterner::getInstance();
 
 void add_words()
 {
-    d.addWord("1", JitGenerator::push1, JitGenerator::build_forth(JitGenerator::push1), nullptr, nullptr);
-    d.addWord("2", JitGenerator::push2, JitGenerator::build_forth(JitGenerator::push2), nullptr, nullptr);
-    d.addWord("3", JitGenerator::push3, JitGenerator::build_forth(JitGenerator::push3), nullptr, nullptr);
-    d.addWord("4", JitGenerator::push4, JitGenerator::build_forth(JitGenerator::push4), nullptr, nullptr);
-    d.addWord("8", JitGenerator::push8, JitGenerator::build_forth(JitGenerator::push8), nullptr, nullptr);
+    d.addConstant("1", JitGenerator::push1, JitGenerator::build_forth(JitGenerator::push1), nullptr, nullptr);
+    d.addConstant("2", JitGenerator::push2, JitGenerator::build_forth(JitGenerator::push2), nullptr, nullptr);
+    d.addConstant("3", JitGenerator::push3, JitGenerator::build_forth(JitGenerator::push3), nullptr, nullptr);
+    d.addConstant("4", JitGenerator::push4, JitGenerator::build_forth(JitGenerator::push4), nullptr, nullptr);
+    d.addConstant("8", JitGenerator::push8, JitGenerator::build_forth(JitGenerator::push8), nullptr, nullptr);
 
     // d.addWord("16", JitGenerator::push16, JitGenerator::build_forth(JitGenerator::push16), nullptr, nullptr);
 
-    d.addWord("32", JitGenerator::push32, JitGenerator::build_forth(JitGenerator::push32), nullptr, nullptr);
-    d.addWord("64", JitGenerator::push64, JitGenerator::build_forth(JitGenerator::push64), nullptr, nullptr);
-    d.addWord("-1", JitGenerator::pushNeg1, JitGenerator::build_forth(JitGenerator::pushNeg1), nullptr, nullptr);
+    d.addConstant("32", JitGenerator::push32, JitGenerator::build_forth(JitGenerator::push32), nullptr, nullptr);
+    d.addConstant("64", JitGenerator::push64, JitGenerator::build_forth(JitGenerator::push64), nullptr, nullptr);
+    d.addConstant("-1", JitGenerator::pushNeg1, JitGenerator::build_forth(JitGenerator::pushNeg1), nullptr, nullptr);
 
     d.addWord("2*", JitGenerator::gen2mul, JitGenerator::build_forth(JitGenerator::gen2mul), nullptr, nullptr);
     d.addWord("4*", JitGenerator::gen4mul, JitGenerator::build_forth(JitGenerator::gen4mul), nullptr, nullptr);
@@ -54,8 +54,10 @@ void add_words()
     d.addWord("0=", JitGenerator::genZeroEquals, JitGenerator::build_forth(JitGenerator::genZeroEquals), nullptr,
               nullptr);
 
-    d.addWord("0<", JitGenerator::genZeroLessThan, JitGenerator::build_forth(JitGenerator::genZeroLessThan), nullptr, nullptr);
-    d.addWord("0>", JitGenerator::genZeroGreaterThan, JitGenerator::build_forth(JitGenerator::genZeroGreaterThan), nullptr, nullptr);
+    d.addWord("0<", JitGenerator::genZeroLessThan, JitGenerator::build_forth(JitGenerator::genZeroLessThan), nullptr,
+              nullptr);
+    d.addWord("0>", JitGenerator::genZeroGreaterThan, JitGenerator::build_forth(JitGenerator::genZeroGreaterThan),
+              nullptr, nullptr);
 
     // Add the < comparison word
     d.addWord("<", JitGenerator::genLt, JitGenerator::build_forth(JitGenerator::genLt), nullptr, nullptr);
@@ -115,23 +117,25 @@ void add_words()
 
 
     // Add immediate functions for control flow words
-    d.addWord("IF", nullptr, nullptr, JitGenerator::genIf, nullptr);
-    d.addWord("THEN", nullptr, nullptr, JitGenerator::genThen, nullptr);
-    d.addWord("ELSE", nullptr, nullptr, JitGenerator::genElse, nullptr);
-    d.addWord("BEGIN", nullptr, nullptr, JitGenerator::genBegin, nullptr);
-    d.addWord("UNTIL", nullptr, nullptr, JitGenerator::genUntil, nullptr);
-    d.addWord("WHILE", nullptr, nullptr, JitGenerator::genWhile, nullptr);
-    d.addWord("REPEAT", nullptr, nullptr, JitGenerator::genRepeat, nullptr);
-    d.addWord("AGAIN", nullptr, nullptr, JitGenerator::genAgain, nullptr);
-    d.addWord("DO", nullptr, nullptr, JitGenerator::genDo, nullptr);
-    d.addWord("LOOP", nullptr, nullptr, JitGenerator::genLoop, nullptr);
-    d.addWord("+LOOP", nullptr, nullptr, JitGenerator::genPlusLoop, nullptr);
-    d.addWord("I", nullptr, nullptr, JitGenerator::genI, nullptr);
-    d.addWord("J", nullptr, nullptr, JitGenerator::genJ, nullptr);
-    d.addWord("K", nullptr, nullptr, JitGenerator::genK, nullptr);
-    d.addWord("EXIT", nullptr, nullptr, JitGenerator::genExit, nullptr);
-    d.addWord("LEAVE", nullptr, nullptr, JitGenerator::genLeave, nullptr);
-    d.addWord("{", nullptr, nullptr, JitGenerator::gen_leftBrace, nullptr);
+    d.addCompileOnlyImmediate("IF", nullptr, nullptr, JitGenerator::genIf, nullptr);
+    d.addCompileOnlyImmediate("THEN", nullptr, nullptr, JitGenerator::genThen, nullptr);
+    d.addCompileOnlyImmediate("ELSE", nullptr, nullptr, JitGenerator::genElse, nullptr);
+    d.addCompileOnlyImmediate("BEGIN", nullptr, nullptr, JitGenerator::genBegin, nullptr);
+    d.addCompileOnlyImmediate("UNTIL", nullptr, nullptr, JitGenerator::genUntil, nullptr);
+    d.addCompileOnlyImmediate("WHILE", nullptr, nullptr, JitGenerator::genWhile, nullptr);
+    d.addCompileOnlyImmediate("REPEAT", nullptr, nullptr, JitGenerator::genRepeat, nullptr);
+    d.addCompileOnlyImmediate("AGAIN", nullptr, nullptr, JitGenerator::genAgain, nullptr);
+    d.addCompileOnlyImmediate("RECURSE", nullptr, nullptr, JitGenerator::genRecurse, nullptr);
+    d.addCompileOnlyImmediate("DO", nullptr, nullptr, JitGenerator::genDo, nullptr);
+    d.addCompileOnlyImmediate("LOOP", nullptr, nullptr, JitGenerator::genLoop, nullptr);
+    d.addCompileOnlyImmediate("+LOOP", nullptr, nullptr, JitGenerator::genPlusLoop, nullptr);
+    d.addCompileOnlyImmediate("I", nullptr, nullptr, JitGenerator::genI, nullptr);
+    d.addCompileOnlyImmediate("J", nullptr, nullptr, JitGenerator::genJ, nullptr);
+    d.addCompileOnlyImmediate("K", nullptr, nullptr, JitGenerator::genK, nullptr);
+    d.addCompileOnlyImmediate("EXIT", nullptr, nullptr, JitGenerator::genExit, nullptr);
+    d.addCompileOnlyImmediate("LEAVE", nullptr, nullptr, JitGenerator::genLeave, nullptr);
+    d.addCompileOnlyImmediate("{", nullptr, nullptr, JitGenerator::gen_leftBrace, nullptr);
+
     d.addWord("to", nullptr, nullptr, JitGenerator::genTO, JitGenerator::execTO);
 
 
@@ -143,11 +147,10 @@ void add_words()
 
     d.addWord("sprint", JitGenerator::genPrint, JitGenerator::build_forth(JitGenerator::genPrint), nullptr, nullptr);
 
-    d.addWord("value", nullptr, nullptr, nullptr, JitGenerator::genImmediateValue);
-    d.addWord("string", nullptr, nullptr, nullptr, JitGenerator::genImmediateStringValue);
-    d.addWord("constant", nullptr, nullptr, nullptr, JitGenerator::genImmediateConstant);
-
-    d.addWord("variable", nullptr, nullptr, nullptr, JitGenerator::genImmediateVariable);
+    d.addInterpretOnlyImmediate("value", nullptr, nullptr, nullptr, JitGenerator::genImmediateValue);
+    d.addInterpretOnlyImmediate("string", nullptr, nullptr, nullptr, JitGenerator::genImmediateStringValue);
+    d.addInterpretOnlyImmediate("constant", nullptr, nullptr, nullptr, JitGenerator::genImmediateConstant);
+    d.addInterpretOnlyImmediate("variable", nullptr, nullptr, nullptr, JitGenerator::genImmediateVariable);
 
     d.addWord("DEPTH", JitGenerator::genDepth2, JitGenerator::build_forth(JitGenerator::genDepth2), nullptr, nullptr);
     d.addWord("FORGET", JitGenerator::genForget, JitGenerator::build_forth(JitGenerator::genForget), nullptr, nullptr);
@@ -160,10 +163,19 @@ void add_words()
     d.addWord("words", nullptr, JitGenerator::words, nullptr, nullptr);
     d.addWord("see", nullptr, nullptr, nullptr, JitGenerator::see);
 
-    compileWord("space", "32 emit", "");
-    compileWord("spaces", "0 do space loop", "");
-    compileWord("cr", "13 emit 10 emit", "");
-    compileWord("sq", "dup * ","");
+    // needs more thought.
+    //d.addWord("abort\"", nullptr, nullptr, JitGenerator::genImmediateAbortQuote, nullptr);
+
+    // define words in forth
+    interpreter(": space 32 emit ;");
+    interpreter(": spaces 0 do space loop ;");
+    interpreter(": cr 13 emit 10 emit ;");
+    interpreter(": sq dup * ;");
+    interpreter(" -1 constant TRUE");
+    interpreter(" 0 constant FALSE");
+    interpreter(": fact dup 2 < if drop 1 exit then dup begin dup 2 > while 1- swap over * swap repeat drop ;");
+    interpreter(": rfact  DUP 2 < IF DROP 1 EXIT THEN  DUP 1- RECURSE * ;");
+
 }
 
 

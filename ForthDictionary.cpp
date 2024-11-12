@@ -59,6 +59,39 @@ void ForthDictionary::addWord(const char* name,
     addWord(name, generatorFunc, compiledFunc, immediateFunc, immTerpFunc, "");
 }
 
+void ForthDictionary::addConstant(const char* name,
+                              ForthFunction generatorFunc,
+                              ForthFunction compiledFunc,
+                              ForthFunction immediateFunc,
+                              ForthFunction immTerpFunc)
+{
+    addWord(name, generatorFunc, compiledFunc, immediateFunc, immTerpFunc, "");
+    latestWord->type = ForthWordType::CONSTANT;
+}
+
+void ForthDictionary::addCompileOnlyImmediate(const char* name,
+                              ForthFunction generatorFunc,
+                              ForthFunction compiledFunc,
+                              ForthFunction immediateFunc,
+                              ForthFunction immTerpFunc)
+{
+    addWord(name, generatorFunc, compiledFunc, immediateFunc, immTerpFunc, "");
+    latestWord->type = ForthWordType::WORD;
+    latestWord->state = ForthWordState::COMPILE_ONLY_IMMEDIATE;
+}
+
+void ForthDictionary::addInterpretOnlyImmediate(const char* name,
+                              ForthFunction generatorFunc,
+                              ForthFunction compiledFunc,
+                              ForthFunction immediateFunc,
+                              ForthFunction immTerpFunc)
+{
+    addWord(name, generatorFunc, compiledFunc, immediateFunc, immTerpFunc, "");
+    latestWord->type = ForthWordType::WORD;
+    latestWord->state = ForthWordState::INTERPRET_ONLY_IMMEDIATE;
+}
+
+
 
 // Find a word in the dictionary
 ForthWord* ForthDictionary::findWord(const char* name) const
@@ -176,12 +209,12 @@ void ForthDictionary::setTerpFunction(ForthFunction func) const
     latestWord->terpFunc = func;
 }
 
-void ForthDictionary::setState(uint8_t i)
+void ForthDictionary::setState(const ForthWordState i) const
 {
     latestWord->state = i;
 }
 
-uint8_t ForthDictionary::getState() const
+ForthWordState ForthDictionary::getState() const
 {
     return latestWord->state;
 }
@@ -203,12 +236,12 @@ uint64_t ForthDictionary::getData() const
 }
 
 // get and set type
-uint16_t ForthDictionary::getType() const
+ForthWordType ForthDictionary::getType() const
 {
     return latestWord->type;
 }
 
-void ForthDictionary::setType(const uint16_t type) const
+void ForthDictionary::setType(ForthWordType type) const
 {
    latestWord->type = type;
 }
@@ -219,6 +252,9 @@ void* ForthDictionary::get_data_ptr() const
 {
     return &latestWord->data;
 }
+
+
+
 
 void ForthDictionary::displayWord(std::string name)
 {
@@ -232,12 +268,12 @@ void ForthDictionary::displayWord(std::string name)
     std::cout << "Name: " << word->name << std::endl;
 
     // display function addresses in hex
-    std::cout << "Compiled function: " << std::hex << reinterpret_cast<uintptr_t>(word->compiledFunc) << std::endl;
-    std::cout << "Immediate function: " << std::hex << reinterpret_cast<uintptr_t>(word->immediateFunc) << std::endl;
-    std::cout << "Generator function: " << std::hex << reinterpret_cast<uintptr_t>(word->generatorFunc) << std::endl;
-    std::cout << "Interp function: " << std::hex << reinterpret_cast<uintptr_t>(word->terpFunc) << std::endl;
-    std::cout << "State: " << word->state << std::endl;
-    std::cout << "Type: "  << word->type << std::endl;
+    std::cout << "Compiled  : " << std::hex << reinterpret_cast<uintptr_t>(word->compiledFunc) << std::endl;
+    std::cout << "Immediate : " << std::hex << reinterpret_cast<uintptr_t>(word->immediateFunc) << std::endl;
+    std::cout << "Generator : " << std::hex << reinterpret_cast<uintptr_t>(word->generatorFunc) << std::endl;
+    std::cout << "Interp    : " << std::hex << reinterpret_cast<uintptr_t>(word->terpFunc) << std::endl;
+    std::cout << "State: " << ForthWordStateToString(word->state) << std::endl;
+    std::cout << "Type: "  << ForthWordTypeToString(word->type) << std::endl;
     std::cout << "Data: " << std::dec << word->data << std::endl;
     std::cout << "Link: " << word->link << std::endl;
 

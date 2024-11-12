@@ -144,6 +144,11 @@ inline extern void prints(const char* str)
     std::cout << str;
 }
 
+inline extern void throw_with_string(const char* str)
+{
+    throw std::runtime_error(str);
+}
+
 
 static bool logging = false;
 
@@ -1463,6 +1468,8 @@ public:
 
 
     // exit jump off the word.
+    // needs to pop values from the return stack.
+
     static void genExit()
     {
         if (!jc.assembler)
@@ -1472,48 +1479,12 @@ public:
 
         auto& a = *jc.assembler;
         a.comment(" ; ----- gen_exit");
-
         // Create a temporary stack to hold the popped labels
         std::stack<LoopLabel> tempStack;
         bool found = false;
-        FunctionEntryExitLabel exitLabel;
-
-        // Search for the closest FUNCTION_ENTRY_EXIT label
-        while (!loopStack.empty())
-        {
-            LoopLabel topLabel = loopStack.top();
-            loopStack.pop();
-
-            // Check if the current label is of type FUNCTION_ENTRY_EXIT
-            if (topLabel.type == LoopType::FUNCTION_ENTRY_EXIT)
-            {
-                exitLabel = std::get<FunctionEntryExitLabel>(topLabel.label);
-                found = true;
-                break;
-            }
-
-            // Push the label into the temporary stack
-            tempStack.push(topLabel);
-        }
-
-        // Push back all labels to the loopStack
-        while (!tempStack.empty())
-        {
-            loopStack.push(tempStack.top());
-            tempStack.pop();
-        }
-
-        // Handle the case when no FUNCTION_ENTRY_EXIT label is found
-        if (!found)
-        {
-            throw std::runtime_error("gen_exit: No FUNCTION_ENTRY_EXIT label found above current context");
-        }
-
-        // Bind the exit label
-        a.comment(" ; -----Jump to EXIT label");
-        a.bind(exitLabel.exitLabel);
-
-        if (logging) std::cout << " ; gen_exit: Bound to function exit label\n";
+        auto drop_bytes = 8 * doLoopDepth;
+        a.add(asmjit::x86::r14, drop_bytes);
+        a.ret(); // return early from function.
     }
 
 
@@ -2554,6 +2525,34 @@ public:
         a.nop();
     }
 
+
+    // recursion
+    static void genRecurse()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genRecurse: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+
+        // Look for the current function's entry label on the loop stack
+        if (!loopStack.empty() && loopStack.top().type == FUNCTION_ENTRY_EXIT)
+        {
+            auto functionLabels = std::get<FunctionEntryExitLabel>(loopStack.top().label);
+
+            a.comment(" ; ----- gen_recurse");
+            a.nop();
+
+            // Generate a call to the entry label (self-recursion)
+            a.call(functionLabels.entryLabel);
+        }
+        else
+        {
+            throw std::runtime_error("genRecurse: No matching FUNCTION_ENTRY_EXIT structure on the stack");
+        }
+    }
+
     static void genIf()
     {
         if (!jc.assembler)
@@ -3046,8 +3045,10 @@ public:
 
     // comparisons
 
-    static void genZeroEquals() {
-        if (!jc.assembler) {
+    static void genZeroEquals()
+    {
+        if (!jc.assembler)
+        {
             throw std::runtime_error("genZeroEquals: Assembler not initialized");
         }
 
@@ -3071,8 +3072,10 @@ public:
     }
 
 
-    static void genZeroLessThan() {
-        if (!jc.assembler) {
+    static void genZeroLessThan()
+    {
+        if (!jc.assembler)
+        {
             throw std::runtime_error("genZeroLessThan: Assembler not initialized");
         }
 
@@ -3096,8 +3099,10 @@ public:
     }
 
 
-    static void genZeroGreaterThan() {
-        if (!jc.assembler) {
+    static void genZeroGreaterThan()
+    {
+        if (!jc.assembler)
+        {
             throw std::runtime_error("genZeroGreaterThan: Assembler not initialized");
         }
 
@@ -3119,10 +3124,6 @@ public:
         a.movsx(flag, asmjit::x86::bl); // Sign-extend bl to the full width of flag (rbx)
         a.mov(asmjit::x86::qword_ptr(ds), flag); // Store the result back on stack
     }
-
-
-
-
 
 
     static void genEq()
@@ -3691,6 +3692,48 @@ public:
     GEN_SHIFT_FN(gen2Div, genRightShift, 1)
     GEN_SHIFT_FN(gen4Div, genRightShift, 2)
     GEN_SHIFT_FN(gen8Div, genRightShift, 3)
+
+
+    //  abort e.g. IF ABORT" error" THEN
+    //  neither throw nor longjmp work yet
+
+    // abort with error message
+    // static void genImmediateAbortQuote()
+    // {
+    //     const auto& words = *jc.words;
+    //     size_t pos = jc.pos_next_word + 1;
+    //     std::string word = words[pos];
+    //     jc.word = word;
+    //     if (logging)
+    //         printf("genImmediateAbortQuote: %s\n", word.c_str());
+    //
+    //     const auto index = stripIndex(word);
+    //     strIntern.incrementRef(index);
+    //     auto address = strIntern.getStringAddress(index);
+    //
+    //     if (!jc.assembler)
+    //     {
+    //         throw std::runtime_error("genImmediateAbortQuote: Assembler not initialized");
+    //     }
+    //
+    //
+    //     auto& a = *jc.assembler;
+    //     commentWithWord(" ; ----- ABORT\" displaying text exiting  ");
+    //
+    //     // Display the string
+    //     a.mov(asmjit::x86::rcx, address); // put parameter in argument
+    //     a.sub(asmjit::x86::rsp, 40); // Allocate space for the shadow space
+    //     a.call(prints); // call puts
+    //     a.add(asmjit::x86::rsp, 40); // restore shadow space
+    //
+    //     // Generate the jump to the function exit label
+    //     a.mov(asmjit::x86::rax, callLongjmp);
+    //     a.sub(asmjit::x86::rsp, 40); // Allocate space for the shadow space
+    //     a.call(asmjit::x86::rax);
+    //      // never gets here
+    //
+    //     jc.pos_last_word = pos;
+    // }
 
 private
 :

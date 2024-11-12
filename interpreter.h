@@ -44,14 +44,23 @@ inline void exec(ForthFunction f)
     f();
 }
 
+// also removes comments between ( and )
 inline std::string scanForLiterals(const std::string& compileText)
 {
+    // Regex to match literals (s" ..." or .")
     std::regex literalRegex(R"((\w*")\s(.*?[^\\])\")");
+    // Regex to match ( ... ) comments
+    std::regex commentRegex(R"(\(.*?\))");
+
     std::string result;
     std::smatch match;
     std::string tmpText = compileText;
     StringInterner& interner = StringInterner::getInstance();
 
+    // Remove comments from the input text
+    tmpText = std::regex_replace(tmpText, commentRegex, "");
+
+    // Process literals
     while (std::regex_search(tmpText, match, literalRegex))
     {
         std::string literalStart = match[1].str(); // s" or ."
@@ -72,9 +81,10 @@ inline std::string scanForLiterals(const std::string& compileText)
     return result;
 }
 
-
 inline void compileWord(const std::string& wordName, const std::string& compileText, const std::string& sourceCode)
 {
+    logging = jc.logging;
+
     bool logging = tracedWords.find(wordName) != tracedWords.end();
 
     if (logging)
@@ -137,7 +147,6 @@ inline void compileWord(const std::string& wordName, const std::string& compileT
                 {
                     i = jc.pos_last_word;
                 }
-                if (logging) printf("next word is %s", words[i].c_str());
             }
             else
             {
@@ -214,6 +223,8 @@ inline void interpreter(const std::string& sourceCode)
     std::string newCompileText = scanForLiterals(sourceCode);
 
     const auto words = split(newCompileText);
+
+    logging = jc.logging;
 
     if (logging) printf("Split words: ");
     for (const auto& word : words)
@@ -292,7 +303,6 @@ inline void interpreter(const std::string& sourceCode)
                     {
                         i = jc.pos_last_word;
                     }
-                    if (logging) printf("next word is %s", words[i].c_str());
                 }
                 else
                 {
@@ -397,11 +407,13 @@ inline void interactive_terminal()
                     const auto& nextWord = *it;
                     if (command == "*TRON" || command == "*tron")
                     {
-                        traceon(nextWord);
+                        if (!nextWord.empty())
+                            traceon(nextWord);
                     }
                     else if (command == "*TROFF" || command == "*troff")
                     {
-                        traceoff(nextWord);
+                        if (!nextWord.empty())
+                            traceoff(nextWord);
                     }
                     // Remove `command` and `nextWord` from accumulated_input
                     accumulated_input.erase(accumulated_input.find(command), command.length() + nextWord.length() + 2);

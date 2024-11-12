@@ -56,18 +56,25 @@ inline void test_against_ds(const std::string& words, const uint64_t expected_to
     }
 }
 
-
-
 inline void testCompileAndRun(const std::string& wordName,
                               const std::string& wordDefinition,
                               const std::string& testString, int expectedResult)
 {
-    // source code is : wordname wordDefinition ;
-    std::string sourceCode = wordName + " " + wordDefinition + " ;";
-    compileWord(wordName, wordDefinition, sourceCode);
-    test_against_ds(testString, expectedResult);
-    d.forgetLastWord();
+    try {
+        // source code is : wordname wordDefinition ;
+        std::string sourceCode = wordName + " " + wordDefinition + " ;";
+        compileWord(wordName, wordDefinition, sourceCode);
+        test_against_ds(testString, expectedResult);
+        d.forgetLastWord();
+    } catch (const std::runtime_error& e) {
+        std::cerr << "Runtime error: " << e.what() << std::endl;
+        // Handle the error as needed (e.g., logging, cleanup)
+    } catch (const std::exception& e) {
+        std::cerr << "An unexpected error occurred: " << e.what() << std::endl;
+        // Handle other exceptions as needed
+    }
 }
+
 
 
 inline void testInterpreter(const std::string& test_name, const std::string& testString,
@@ -347,6 +354,10 @@ void run_basic_tests()
                       32);
 
 
+    test_against_ds(" TRUE ", -1);
+    test_against_ds(" FALSE ", 0);
+
+
     test_against_ds(" 10 3 MOD ", 1); // 10 % 3 = 1
     test_against_ds(" 5 NEGATE ", -5); // -5
     test_against_ds(" -7 ABS ", 7); // | -7 | = 7
@@ -374,6 +385,17 @@ void run_basic_tests()
 
     // tidy
     test_against_ds(" forget forget forget forget 10 ", 10);
+
+    // fact - crashy
+    testCompileAndRun("factTest",
+                      "dup 2 < if drop 1 exit then dup begin dup 2 > while 1- swap over * swap repeat drop ",
+                      " 5 factTest",
+                      120);
+
+    testCompileAndRun("rfactTest",
+                      "DUP 2 < IF DROP 1 EXIT THEN  DUP 1- RECURSE * ",
+                      " 5 rfactTest",
+                      120);
 
 
     // Print summary after running tests

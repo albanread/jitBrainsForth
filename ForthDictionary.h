@@ -17,16 +17,76 @@ enum ForthWordState
     IMMEDIATE = 1 << 0,
     COMPILE_ONLY = 1 << 1,
     INTERPRET_ONLY = 1 << 2,
+    COMPILE_ONLY_IMMEDIATE = COMPILE_ONLY | IMMEDIATE,
+    INTERPRET_ONLY_IMMEDIATE = INTERPRET_ONLY | IMMEDIATE,
 };
 
+
+// Convert ForthWordState to a string
+inline std::string ForthWordStateToString(const ForthWordState state)
+{
+    switch (state)
+    {
+    case NORMAL: return "NORMAL";
+    case IMMEDIATE: return "IMMEDIATE";
+    case COMPILE_ONLY: return "COMPILE_ONLY";
+    case INTERPRET_ONLY: return "INTERPRET_ONLY";
+    case COMPILE_ONLY_IMMEDIATE: return "COMPILE_ONLY_IMMEDIATE";
+    default: return "UNKNOWN";
+    }
+}
+
+// Enum as given
 enum ForthWordType
 {
     WORD = 0,
     CONSTANT = 1 << 0,
     VARIABLE = 1 << 1,
     VALUE = 1 << 2,
-    STRING = 1 << 3
+    STRING = 1 << 3,
+    FLOAT = 1 << 4,
+    ARRAY = 1 << 5,
+    STRINGARRAY = 1 << 6,
+    FLOATARRAY = 1 << 7,
+    ARRAYOFSTRING = 1 << 10,
+    ARRAYOFFLOAT = 1 << 11,
+    ARRAYOFARRAY = 1 << 13,
+    ARRAYOFSTRINGARRAY = 1 << 14,
+    ARRAYOFFLOATARRAY = 1 << 15,
+    ARRAYOFDOUBLEARRAY = 1 << 16,
+    ARRAYOFARRAYOFSTRING = 1 << 17,
+    ARRAYOFARRAYOFFLOAT = 1 << 18,
+    RECORD = 1 << 20
 };
+
+// Convert ForthWordType to a string
+inline std::string ForthWordTypeToString(const ForthWordType type)
+{
+    switch (type)
+    {
+    case WORD: return "WORD";
+    case CONSTANT: return "CONSTANT";
+    case VARIABLE: return "VARIABLE";
+    case VALUE: return "VALUE";
+    case STRING: return "STRING";
+    case FLOAT: return "FLOAT";
+    case ARRAY: return "ARRAY";
+    case STRINGARRAY: return "STRINGARRAY";
+    case FLOATARRAY: return "FLOATARRAY";
+    case ARRAYOFSTRING: return "ARRAYOFSTRING";
+    case ARRAYOFFLOAT: return "ARRAYOFFLOAT";
+    case ARRAYOFARRAY: return "ARRAYOFARRAY";
+    case ARRAYOFSTRINGARRAY: return "ARRAYOFSTRINGARRAY";
+    case ARRAYOFFLOATARRAY: return "ARRAYOFFLOATARRAY";
+    case ARRAYOFDOUBLEARRAY: return "ARRAYOFDOUBLEARRAY";
+    case ARRAYOFARRAYOFSTRING: return "ARRAYOFARRAYOFSTRING";
+    case ARRAYOFARRAYOFFLOAT: return "ARRAYOFARRAYOFFLOAT";
+    case RECORD: return "RECORD";
+    default: return "UNKNOWN";
+    }
+}
+
+
 
 // Structure to represent a word in the dictionary
 struct ForthWord
@@ -37,9 +97,9 @@ struct ForthWord
     ForthFunction immediateFunc; // Immediate function pointer only used by compiler.
     ForthFunction terpFunc; // Immediate function pointer only used by interpreter
     ForthWord* link; // Pointer to the previous word in the dictionary
-    uint8_t state; // State of the word
+    ForthWordState state; // State of the word
     uint8_t reserved; // Reserved for future use
-    uint8_t type;
+    ForthWordType type;
     uint64_t data; // New 64-bit value for storing data
 
     // Constructor to initialize a word
@@ -51,7 +111,7 @@ struct ForthWord
               ForthWord* prev)
         : generatorFunc(genny), compiledFunc(func),
           immediateFunc(immFunc), terpFunc(terpFunc),
-          link(prev), state(0), data(0) // Set data to zero
+          link(prev), state(ForthWordState::NORMAL), data(0) // Set data to zero
     {
         std::strncpy(name, wordName, sizeof(name));
         name[sizeof(name) - 1] = '\0'; // Ensure null-termination
@@ -74,6 +134,13 @@ public:
                  ForthFunction immTerpFunc, const std::string& sourceCode);
     void addWord(const char* name, ForthFunction generatorFunc, ForthFunction compiledFunc, ForthFunction immediateFunc,
                  ForthFunction immTerpFunc);
+    void addConstant(const char* name, ForthFunction generatorFunc, ForthFunction compiledFunc,
+                     ForthFunction immediateFunc,
+                     ForthFunction immTerpFunc);
+    void addCompileOnlyImmediate(const char* name, ForthFunction generatorFunc, ForthFunction compiledFunc,
+                                 ForthFunction immediateFunc, ForthFunction immTerpFunc);
+    void addInterpretOnlyImmediate(const char* name, ForthFunction generatorFunc, ForthFunction compiledFunc,
+                                   ForthFunction immediateFunc, ForthFunction immTerpFunc);
 
     // Find a word in the dictionary
     ForthWord* findWord(const char* name) const;
@@ -97,13 +164,13 @@ public:
     void setImmediateFunction(ForthFunction func) const;
     void setGeneratorFunction(ForthFunction func) const;
     void setTerpFunction(ForthFunction func) const;
-    void setState(uint8_t i);
-    [[nodiscard]] uint8_t getState() const;
+    void setState(ForthWordState i) const;
+    [[nodiscard]] ForthWordState getState() const;
     void setName(std::string name);
     void setData(uint64_t d);
     uint64_t getData() const;
-    uint16_t getType() const;
-    void setType(uint16_t type) const;
+    ForthWordType getType() const;
+    void setType(ForthWordType type) const;
     void* get_data_ptr() const;
     void displayWord(std::string name);
     void SetState(uint8_t i);
