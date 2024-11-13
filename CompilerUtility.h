@@ -233,7 +233,6 @@ inline void interpreterProcessWord(const std::string& word, size_t& i, const std
         {
 
             const double number = parseFloat(word);
-            printf("Pushing %f", number);
             sm.pushDSDouble(number);
             if (logging) printf("Pushing %s\n", word.c_str());
         }

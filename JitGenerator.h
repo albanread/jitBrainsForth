@@ -4028,6 +4028,7 @@ shiftAction(shiftAmount);                    \
         pushDS(firstVal); // Push the result back onto the stack
     }
 
+    // TODO: wrong order
 
     static void genFSub()
     {
@@ -4279,6 +4280,8 @@ shiftAction(shiftAmount);                    \
         pushDS(val); // Push the result back onto the stack
     }
 
+
+    // TODO comparisons
     static void genFLess()
     {
         if (!jc.assembler)
