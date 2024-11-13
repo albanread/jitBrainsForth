@@ -4,6 +4,8 @@
 #include <iostream>
 #include <unordered_map>
 #include "JitGenerator.h"
+#include <set>
+#include <string>
 
 // Static method to get the singleton instance
 ForthDictionary& ForthDictionary::getInstance(size_t size)
@@ -23,7 +25,7 @@ void ForthDictionary::addWord(const char* name,
                               ForthFunction compiledFunc,
                               ForthFunction immediateFunc,
                               ForthFunction immTerpFunc,
-                              const std::string& sourceCode="")
+                              const std::string& sourceCode = "")
 {
     std::string lower_name = to_lower(name);
 
@@ -60,20 +62,20 @@ void ForthDictionary::addWord(const char* name,
 }
 
 void ForthDictionary::addConstant(const char* name,
-                              ForthFunction generatorFunc,
-                              ForthFunction compiledFunc,
-                              ForthFunction immediateFunc,
-                              ForthFunction immTerpFunc)
+                                  ForthFunction generatorFunc,
+                                  ForthFunction compiledFunc,
+                                  ForthFunction immediateFunc,
+                                  ForthFunction immTerpFunc)
 {
     addWord(name, generatorFunc, compiledFunc, immediateFunc, immTerpFunc, "");
     latestWord->type = ForthWordType::CONSTANT;
 }
 
 void ForthDictionary::addCompileOnlyImmediate(const char* name,
-                              ForthFunction generatorFunc,
-                              ForthFunction compiledFunc,
-                              ForthFunction immediateFunc,
-                              ForthFunction immTerpFunc)
+                                              ForthFunction generatorFunc,
+                                              ForthFunction compiledFunc,
+                                              ForthFunction immediateFunc,
+                                              ForthFunction immTerpFunc)
 {
     addWord(name, generatorFunc, compiledFunc, immediateFunc, immTerpFunc, "");
     latestWord->type = ForthWordType::WORD;
@@ -81,16 +83,15 @@ void ForthDictionary::addCompileOnlyImmediate(const char* name,
 }
 
 void ForthDictionary::addInterpretOnlyImmediate(const char* name,
-                              ForthFunction generatorFunc,
-                              ForthFunction compiledFunc,
-                              ForthFunction immediateFunc,
-                              ForthFunction immTerpFunc)
+                                                ForthFunction generatorFunc,
+                                                ForthFunction compiledFunc,
+                                                ForthFunction immediateFunc,
+                                                ForthFunction immTerpFunc)
 {
     addWord(name, generatorFunc, compiledFunc, immediateFunc, immTerpFunc, "");
     latestWord->type = ForthWordType::WORD;
     latestWord->state = ForthWordState::INTERPRET_ONLY_IMMEDIATE;
 }
-
 
 
 // Find a word in the dictionary
@@ -243,7 +244,7 @@ ForthWordType ForthDictionary::getType() const
 
 void ForthDictionary::setType(ForthWordType type) const
 {
-   latestWord->type = type;
+    latestWord->type = type;
 }
 
 
@@ -254,6 +255,58 @@ void* ForthDictionary::get_data_ptr() const
 }
 
 
+inline std::set<std::string> IndentSet;
+
+std::string spaces(int n)
+{
+    return std::string(n, ' ');
+}
+
+std::string prettyPrintSourceCode(const std::string& source)
+{
+    size_t indent = 2;
+    ForthTokenizer tokenizer(source);
+    std::ostringstream oss;
+    // Example usage
+    while (true)
+    {
+        if (tokenizer.current() == ":")
+        {
+            tokenizer.next();
+            indent += 2;
+            oss << " " << tokenizer.current() << " ";
+            tokenizer.next();
+        }
+        if (tokenizer.current() == "if" || tokenizer.current() == "do" ||
+            tokenizer.current() == "begin"   )
+        {
+            oss << std::endl  << spaces(indent) << tokenizer.current();
+            indent += 2;
+            oss << std::endl << spaces(indent);
+        } else if (tokenizer.current() == "then" || tokenizer.current() == "again"
+            || tokenizer.current() == "repeat"  || tokenizer.current() == "loop"
+            || tokenizer.current() == "+loop"   || tokenizer.current() == "recurse"
+            || tokenizer.current() == ";"
+            )
+        {
+            indent -= 2;
+            oss << std::endl << spaces(indent) << tokenizer.current();
+            oss << std::endl << spaces(indent);
+        } else
+        {
+            oss << tokenizer.current() << " ";
+        }
+        if (!tokenizer.hasNext())
+        {
+            break;
+        }
+        tokenizer.next();
+    }
+
+
+    std::string result = oss.str();
+    return result;
+}
 
 
 void ForthDictionary::displayWord(std::string name)
@@ -273,14 +326,17 @@ void ForthDictionary::displayWord(std::string name)
     std::cout << "Generator : " << std::hex << reinterpret_cast<uintptr_t>(word->generatorFunc) << std::endl;
     std::cout << "Interp    : " << std::hex << reinterpret_cast<uintptr_t>(word->terpFunc) << std::endl;
     std::cout << "State: " << ForthWordStateToString(word->state) << std::endl;
-    std::cout << "Type: "  << ForthWordTypeToString(word->type) << std::endl;
+    std::cout << "Type: " << ForthWordTypeToString(word->type) << std::endl;
     std::cout << "Data: " << std::dec << word->data << std::endl;
     std::cout << "Link: " << word->link << std::endl;
 
     auto it = sourceCodeMap.find(word->name);
-    if (it != nullptr && !it->second.empty()) {
-        std::cout << "Source Code: " << it->second << std::endl;
-    } else {
+    if (it != nullptr && !it->second.empty())
+    {
+        std::cout << "Source Code:\n" << prettyPrintSourceCode(it->second) << std::endl;
+    }
+    else
+    {
         std::cout << "Source Code: N/A" << std::endl << std::endl;
     }
 }

@@ -12,7 +12,7 @@
 #include <variant>
 #include "StringInterner.h"
 #include "Quit.h"
-
+#include "UtilitySDL.h"
 
 const int INVALID_OFFSET = -9999;
 
@@ -1255,7 +1255,7 @@ public:
         const size_t s1 = sm.popSS();
         const size_t delimiter = sm.popSS();
         const size_t position = sm.popDS();
-        const size_t result = strIntern.StringSplit( delimiter, s1, position);
+        const size_t result = strIntern.StringSplit(delimiter, s1, position);
         strIntern.incrementRef(result);
         sm.pushSS(result);
     }
@@ -3618,10 +3618,10 @@ public:
 
     // Macros or inline functions to call the helper function with specific values
 #define GEN_PUSH_CONSTANT_FN(name, value) \
-    static void name()                     \
-    {                                      \
-        genPushConstant(value);            \
-    }
+static void name()                     \
+{                                      \
+genPushConstant(value);            \
+}
 
     // Define specific constant push functions
     GEN_PUSH_CONSTANT_FN(push1, 1)
@@ -3673,11 +3673,11 @@ public:
 
 
 #define GEN_INC_DEC_FN(name, operation, value) \
-    static void name()                         \
-    {                                          \
-    jc.uint64_A = value;                   \
-    operation();                           \
-    }
+static void name()                         \
+{                                          \
+jc.uint64_A = value;                   \
+operation();                           \
+}
 
     // Define specific increment functions
     GEN_INC_DEC_FN(gen2Inc, genPlusLong, 2)
@@ -3749,10 +3749,10 @@ public:
 
     // Macros to define the shift operations
 #define GEN_SHIFT_FN(name, shiftAction, shiftAmount) \
-    static void name()                               \
-    {                                                \
-        shiftAction(shiftAmount);                    \
-    }
+static void name()                               \
+{                                                \
+shiftAction(shiftAmount);                    \
+}
 
     // Define specific shift functions for multiplication
     GEN_SHIFT_FN(gen2mul, genLeftShift, 1)
@@ -3806,6 +3806,100 @@ public:
     //
     //     jc.pos_last_word = pos;
     // }
+
+
+    static void genQuitSDL()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genQuitSDL: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        commentWithWord(" ; ----- Quit SDL2 ");
+
+        // call function with shadow
+        a.sub(asmjit::x86::rsp, 40); // Allocate space for the shadow space
+        a.call(sdl_quit);
+        a.add(asmjit::x86::rsp, 40); // restore shadow space
+
+        a.sub(asmjit::x86::rsp, 40); // Allocate space for the shadow space
+        a.call(prim_end_sdl);
+        a.add(asmjit::x86::rsp, 40); // restore shadow space
+    }
+
+
+    static void genStartSDL()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genQuitSDL: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        commentWithWord(" ; ----- Start SDL2 ");
+
+        // call function with shadow
+        a.sub(asmjit::x86::rsp, 40); // Allocate space for the shadow space
+        a.call(prim_start_sdl);
+        a.add(asmjit::x86::rsp, 40); // restore shadow space
+    }
+
+
+    static void genShowSDL()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genQuitSDL: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        commentWithWord(" ; ----- Quit SDL2 ");
+
+        // call function with shadow
+        a.sub(asmjit::x86::rsp, 40); // Allocate space for the shadow space
+        a.call(sdl_show);
+        a.add(asmjit::x86::rsp, 40); // restore shadow space
+    }
+
+
+    static void genHideSDL()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genQuitSDL: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        commentWithWord(" ; ----- Quit SDL2 ");
+
+        // call function with shadow
+        a.sub(asmjit::x86::rsp, 40); // Allocate space for the shadow space
+        a.call(sdl_hide);
+        a.add(asmjit::x86::rsp, 40); // restore shadow space
+    }
+
+    static void genSDLSetTitle()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genQuitSDL: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- genSDLSetTitle - set title");
+        popSS(asmjit::x86::rcx); // get the string from the string stack.
+
+        // get string address
+        a.sub(asmjit::x86::rsp, 40);
+        a.call(prim_sindex);
+        a.add(asmjit::x86::rsp, 40); // adress in rax.
+
+        a.mov(asmjit::x86::rcx, asmjit::x86::rax);
+        a.sub(asmjit::x86::rsp, 40);
+        a.call(sdl_set_window_title);
+        a.add(asmjit::x86::rsp, 40);
+    }
 
 private
 :

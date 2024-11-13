@@ -87,7 +87,47 @@ inline std::string ForthWordTypeToString(const ForthWordType type)
     }
 }
 
+class ForthTokenizer {
+public:
+    explicit ForthTokenizer(const std::string& source) {
+        tokenize(source);
+        currentIndex = 0;
+    }
 
+    // Move to the next word in the source code
+    void next() {
+        if (currentIndex < words.size()) {
+            currentIndex++;
+        }
+    }
+
+    // Get the current word
+    std::string current() const {
+
+        return words[currentIndex];
+    }
+
+    // Check if the tokenizer has more words
+    bool hasNext() const {
+        return currentIndex < words.size() - 1;
+    }
+
+private:
+    std::vector<std::string> words;
+    size_t currentIndex;
+
+    // Splits the source code into words
+    void tokenize(const std::string& source) {
+        std::istringstream iss(source);
+        std::string word;
+
+        while (iss >> word) {
+            // lower case word
+            std::ranges::transform(word, word.begin(), ::tolower);
+            words.push_back(word);
+        }
+    }
+};
 
 // Structure to represent a word in the dictionary
 struct ForthWord

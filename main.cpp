@@ -176,6 +176,15 @@ void add_words()
     d.addWord("words", nullptr, JitGenerator::words, nullptr, nullptr);
     d.addWord("see", nullptr, nullptr, nullptr, JitGenerator::see);
 
+
+    // SDL interface
+    d.addWord("sdl.Start", JitGenerator::genStartSDL, JitGenerator::build_forth(JitGenerator::genStartSDL), nullptr, nullptr);
+    d.addWord("sdl.Quit", JitGenerator::genQuitSDL, JitGenerator::build_forth(JitGenerator::genQuitSDL), nullptr, nullptr);
+    d.addWord("sdl.Show", JitGenerator::genShowSDL, JitGenerator::build_forth(JitGenerator::genShowSDL), nullptr, nullptr);
+    d.addWord("sdl.Hide", JitGenerator::genHideSDL, JitGenerator::build_forth(JitGenerator::genHideSDL), nullptr, nullptr);
+    d.addWord("sdl.SetTitle", JitGenerator::genSDLSetTitle, JitGenerator::build_forth(JitGenerator::genSDLSetTitle), nullptr, nullptr);
+
+
     // needs more thought.
     //d.addWord("abort\"", nullptr, nullptr, JitGenerator::genImmediateAbortQuote, nullptr);
 
@@ -188,13 +197,6 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
 
     jc.loggingOFF();
     add_words();
-
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-        std::cerr << "Unable to initialize SDL: " << SDL_GetError() << std::endl;
-        return 1;
-    }
-
-    std::thread sdlThread(sdl_main_loop);
     std::thread terminalThread(Quit());
 
 
