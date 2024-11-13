@@ -73,7 +73,34 @@ void add_words()
     d.addWord("*", JitGenerator::genMul, JitGenerator::build_forth(JitGenerator::genMul), nullptr, nullptr);
     d.addWord("/", JitGenerator::genDiv, JitGenerator::build_forth(JitGenerator::genDiv), nullptr, nullptr);
 
-    //d.addWord("*/MOD", JitGenerator::genStarSlashMod, JitGenerator::build_forth(JitGenerator::genStarSlashMod), nullptr, nullptr);
+    d.addWord("f+", JitGenerator::genFPlus, JitGenerator::build_forth(JitGenerator::genFPlus), nullptr, nullptr);
+    d.addWord("f-", JitGenerator::genFSub, JitGenerator::build_forth(JitGenerator::genFSub), nullptr, nullptr);
+    d.addWord("f*", JitGenerator::genFMul, JitGenerator::build_forth(JitGenerator::genFMul), nullptr, nullptr);
+    d.addWord("f/", JitGenerator::genFDiv, JitGenerator::build_forth(JitGenerator::genFDiv), nullptr, nullptr);
+    d.addWord("fmod", JitGenerator::genFMod, JitGenerator::build_forth(JitGenerator::genFMod), nullptr, nullptr);    d.addWord("fsqrt", JitGenerator::genSqrt, JitGenerator::build_forth(JitGenerator::genSqrt), nullptr, nullptr);
+    d.addWord("fsqrt", JitGenerator::genSqrt, JitGenerator::build_forth(JitGenerator::genSqrt), nullptr, nullptr);
+
+    // floats conversions
+    d.addWord("FLOAT", JitGenerator::genIntToFloat, JitGenerator::build_forth(JitGenerator::genIntToFloat), nullptr, nullptr);
+    d.addWord("INTEGER", JitGenerator::genFloatToInt, JitGenerator::build_forth(JitGenerator::genFloatToInt), nullptr, nullptr);
+
+    // Floating point maximum and minimum
+    d.addWord("fmax", JitGenerator::genFMax, JitGenerator::build_forth(JitGenerator::genFMax), nullptr, nullptr);
+    d.addWord("fmin", JitGenerator::genFMin, JitGenerator::build_forth(JitGenerator::genFMin), nullptr, nullptr);
+
+    // use libm
+    d.addWord("fsin", JitGenerator::genSin, JitGenerator::build_forth(JitGenerator::genSin), nullptr, nullptr);
+    d.addWord("fcos", JitGenerator::genCos, JitGenerator::build_forth(JitGenerator::genCos), nullptr, nullptr);
+
+    // floating comparisons
+    d.addWord("f<", JitGenerator::genFLess, JitGenerator::build_forth(JitGenerator::genFLess), nullptr, nullptr);
+    d.addWord("f>", JitGenerator::genFGreater, JitGenerator::build_forth(JitGenerator::genFGreater), nullptr, nullptr);
+    d.addWord("f=", JitGenerator::genFEqual, JitGenerator::build_forth(JitGenerator::genFEqual), nullptr, nullptr);
+    d.addWord("f<>", JitGenerator::genFNotEqual, JitGenerator::build_forth(JitGenerator::genFNotEqual), nullptr, nullptr);
+
+    // print float
+    d.addWord("f.", JitGenerator::genFDot, JitGenerator::build_forth(JitGenerator::genFDot), nullptr, nullptr);
+
 
     d.addWord("MOD", JitGenerator::genMod, JitGenerator::build_forth(JitGenerator::genMod), nullptr, nullptr);
     d.addWord("NEGATE", JitGenerator::genNegate, JitGenerator::build_forth(JitGenerator::genNegate), nullptr, nullptr);
@@ -182,7 +209,11 @@ void add_words()
     d.addWord("sdl.Quit", JitGenerator::genQuitSDL, JitGenerator::build_forth(JitGenerator::genQuitSDL), nullptr, nullptr);
     d.addWord("sdl.Show", JitGenerator::genShowSDL, JitGenerator::build_forth(JitGenerator::genShowSDL), nullptr, nullptr);
     d.addWord("sdl.Hide", JitGenerator::genHideSDL, JitGenerator::build_forth(JitGenerator::genHideSDL), nullptr, nullptr);
+    d.addWord("sdl.Swap", JitGenerator::genSDLSwap, JitGenerator::build_forth(JitGenerator::genSDLSwap), nullptr, nullptr);
+    d.addWord("sdl.test1", JitGenerator::genTestSDL1, JitGenerator::build_forth(JitGenerator::genTestSDL1), nullptr, nullptr);
+    d.addWord("sdl.test2", JitGenerator::genTestSDL2, JitGenerator::build_forth(JitGenerator::genTestSDL2), nullptr, nullptr);
     d.addWord("sdl.SetTitle", JitGenerator::genSDLSetTitle, JitGenerator::build_forth(JitGenerator::genSDLSetTitle), nullptr, nullptr);
+
 
 
     // needs more thought.

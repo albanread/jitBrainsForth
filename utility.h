@@ -56,6 +56,31 @@ inline std::string trim(const std::string& str)
     return str.substr(first, (last - first + 1));
 }
 
+inline bool is_float(const std::string& s) {
+    if (s.empty()) return false;
+    size_t startIndex = 0;
+    bool hasDecimalPoint = false;
+
+    // Check for an optional leading minus
+    if (s[0] == '-') {
+        if (s.length() == 1) return false; // only '-' is not a valid number
+        startIndex = 1;
+    }
+
+    // Check each character in the string
+    for (size_t i = startIndex; i < s.length(); ++i) {
+        if (s[i] == '.') {
+            if (hasDecimalPoint) return false; // More than one decimal point is not valid
+            hasDecimalPoint = true;
+        } else if (!std::isdigit(s[i])) {
+            return false; // Non-digit characters other than a single decimal point are not valid
+        }
+    }
+
+    // Ensure there's at least one digit if it has a leading minus
+    return hasDecimalPoint && s.length() > startIndex + 1;
+}
+
 
 inline bool is_number(const std::string& s)
 {
@@ -147,6 +172,13 @@ inline void dump(const void* address) {
         std::cout << std::endl;
     }
 }
+
+
+inline void printFloat(double number) {
+    std::cout << number;
+}
+
+
 
 
 #endif //UTILITY_H

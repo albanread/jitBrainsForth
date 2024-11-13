@@ -210,8 +210,7 @@ public:
 
     bool optLoopCheck = false;
     bool optOverflowCheck = false;
-
-
+    double double_A;
 };
 
 #endif // JITCONTEXT_H

@@ -40,6 +40,31 @@ inline void exec(ForthFunction f)
     f();
 }
 
+inline double parseFloat(const std::string& word) {
+    if (word.empty()) {
+        throw std::invalid_argument("Empty string is not a valid number");
+    }
+
+    size_t startIndex = 0;
+    bool isNegative = false;
+
+    // Check for an optional leading minus sign for decimal numbers
+    if (word[0] == '-') {
+        isNegative = true;
+        startIndex = 1;
+    }
+
+    // Default to floating-point parsing
+    double number = std::stod(word.substr(startIndex)); // Convert to double
+
+    // Apply the negative sign if necessary
+    if (isNegative) {
+        number = -number;
+    }
+
+    return number;
+}
+
 
 inline int64_t parseNumber(const std::string& word) {
     if (word.empty()) {
@@ -200,6 +225,27 @@ inline void interpreterProcessWord(const std::string& word, size_t& i, const std
             if (logging) std::cout << "Error: Word [" << word << "] found but cannot be executed.\n";
             d.displayWord(word);
             throw std::runtime_error("Cannot execute word: " + word);
+        }
+    }
+    else if (is_float(word))
+    {
+        try
+        {
+
+            const double number = parseFloat(word);
+            printf("Pushing %f", number);
+            sm.pushDSDouble(number);
+            if (logging) printf("Pushing %s\n", word.c_str());
+        }
+        catch (const std::invalid_argument& e)
+        {
+            if (logging) std::cout << "Error: Invalid number: " << word << std::endl;
+            throw;
+        }
+        catch (const std::out_of_range& e)
+        {
+            if (logging) std::cout << "Error: Number out of range: " << word << std::endl;
+            throw;
         }
     }
     else if (is_number(word))

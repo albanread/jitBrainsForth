@@ -50,6 +50,33 @@ public:
         );
     }
 
+    void pushDSDouble(double value)
+    {
+        if (dsPtr == dsStack)
+        {
+            printf("DS stack overflow\n");
+            throw std::runtime_error("DS stack overflow");
+        }
+
+        uint64_t* ptrToUint64 = reinterpret_cast<uint64_t*>(&value);
+        uint64_t intValue = *ptrToUint64;
+
+        asm volatile (
+            "mov %%r15, %0;"
+            : "=r"(dsPtr) // output
+        );
+
+        dsPtr--;
+        *dsPtr = intValue;
+
+        asm volatile (
+            "mov %0, %%r15;"
+            :
+            : "r"(dsPtr) // input
+        );
+    }
+
+
     void resetDS()
     {
         dsPtr = dsTop;

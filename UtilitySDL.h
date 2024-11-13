@@ -184,7 +184,7 @@ inline void sdl_set_window_title(const std::string& title)
 }
 
 // Sample function to draw on the back buffer
-inline void draw_on_back_buffer()
+inline void test1()
 {
     post_command([]
     {
@@ -195,6 +195,23 @@ inline void draw_on_back_buffer()
             SDL_RenderClear(renderer);
             SDL_Rect rect = {200, 150, 400, 300};
             SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255); // Red color
+            SDL_RenderFillRect(renderer, &rect);
+            SDL_SetRenderTarget(renderer, nullptr);
+        }
+    });
+}
+
+inline void test2()
+{
+    post_command([]
+    {
+        if (back_buffer)
+        {
+            SDL_SetRenderTarget(renderer, back_buffer);
+            SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255); // Green color
+            SDL_RenderClear(renderer);
+            SDL_Rect rect = {200, 150, 400, 300};
+            SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255); // Red color
             SDL_RenderFillRect(renderer, &rect);
             SDL_SetRenderTarget(renderer, nullptr);
         }

@@ -13,6 +13,7 @@
 #include "StringInterner.h"
 #include "Quit.h"
 #include "UtilitySDL.h"
+#include <cmath>
 
 const int INVALID_OFFSET = -9999;
 
@@ -1735,6 +1736,22 @@ public:
         a.mov(asmjit::x86::rcx, jc.uint64_A);
         pushDS(asmjit::x86::rcx);
     }
+
+
+    static void genPushDouble()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("gen_push_long: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- gen_push_long");
+        a.comment(" ; Push long value onto the stack");
+        a.mov(asmjit::x86::rcx, jc.double_A);
+        pushDS(asmjit::x86::rcx);
+    }
+
 
     static void genSubLong()
     {
@@ -3900,6 +3917,545 @@ shiftAction(shiftAmount);                    \
         a.call(sdl_set_window_title);
         a.add(asmjit::x86::rsp, 40);
     }
+
+    // swap buffers
+    static void genSDLSwap()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genQuitSDL: Assembler not initialized");
+        }
+        auto& a = *jc.assembler;
+        commentWithWord(" ; ----- Test SDL ");
+        // call function with shadow
+        a.sub(asmjit::x86::rsp, 40); // Allocate space for the shadow space
+        a.call(swap_buffers);
+        a.add(asmjit::x86::rsp, 40); // restore shadow space
+    }
+
+
+    static void genTestSDL1()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genQuitSDL: Assembler not initialized");
+        }
+        auto& a = *jc.assembler;
+        commentWithWord(" ; ----- Test SDL ");
+        // call function with shadow
+        a.sub(asmjit::x86::rsp, 40); // Allocate space for the shadow space
+        a.call(test1);
+        a.add(asmjit::x86::rsp, 40); // restore shadow space
+    }
+
+    static void genTestSDL2()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genQuitSDL: Assembler not initialized");
+        }
+        auto& a = *jc.assembler;
+        commentWithWord(" ; ----- Test SDL ");
+        // call function with shadow
+        a.sub(asmjit::x86::rsp, 40); // Allocate space for the shadow space
+        a.call(test2);
+        a.add(asmjit::x86::rsp, 40); // restore shadow space
+    }
+
+    // floating point support
+
+
+    static void genIntToFloat()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genIntToFloat: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- genIntToFloat");
+
+        asmjit::x86::Gp intVal = asmjit::x86::rax;
+
+        a.comment(" ; Convert integer to floating point");
+        popDS(intVal); // Pop integer value from the stack
+        a.cvtsi2sd(asmjit::x86::xmm0, intVal); // Convert integer in RAX to double in XMM0
+        a.movq(intVal, asmjit::x86::xmm0); // Move the double from XMM0 back to a general-purpose register
+        pushDS(intVal); // Push the floating point value back onto the stack
+    }
+
+
+    static void genFloatToInt()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genFloatToInt: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- genFloatToInt");
+
+        asmjit::x86::Gp floatVal = asmjit::x86::rax;
+
+        a.comment(" ; Convert floating point to integer");
+        popDS(floatVal); // Pop floating point value from the stack
+        a.movq(asmjit::x86::xmm0, floatVal); // Move the floating point value to XMM0
+        a.cvttsd2si(floatVal, asmjit::x86::xmm0); // Convert floating point in XMM0 to integer in RAX
+        pushDS(floatVal); // Push the integer value back onto the stack
+    }
+
+
+    static void genFPlus()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genFPlus: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- genFPlus");
+
+        asmjit::x86::Gp firstVal = asmjit::x86::rax;
+        asmjit::x86::Gp secondVal = asmjit::x86::rbx;
+
+        a.comment(" ; Add two floating point values from the stack");
+        popDS(firstVal); // Pop the first floating point value
+        popDS(secondVal); // Pop the second floating point value
+        a.movq(asmjit::x86::xmm0, firstVal); // Move the first value to XMM0
+        a.movq(asmjit::x86::xmm1, secondVal); // Move the second value to XMM1
+        a.addsd(asmjit::x86::xmm0, asmjit::x86::xmm1); // Add the two floating point values
+        a.movq(firstVal, asmjit::x86::xmm0); // Move the result back to a general-purpose register
+        pushDS(firstVal); // Push the result back onto the stack
+    }
+
+
+    static void genFSub()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genFSub: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- genFSub");
+
+        asmjit::x86::Gp firstVal = asmjit::x86::rax;
+        asmjit::x86::Gp secondVal = asmjit::x86::rbx;
+
+        a.comment(" ; Subtract two floating point values from the stack");
+        popDS(firstVal); // Pop the first floating point value
+        popDS(secondVal); // Pop the second floating point value
+        a.movq(asmjit::x86::xmm0, firstVal); // Move the first value to XMM0
+        a.movq(asmjit::x86::xmm1, secondVal); // Move the second value to XMM1
+        a.subsd(asmjit::x86::xmm0, asmjit::x86::xmm1); // Subtract the floating point values
+        a.movq(firstVal, asmjit::x86::xmm0); // Move the result back to a general-purpose register
+        pushDS(firstVal); // Push the result back onto the stack
+    }
+
+
+    static void genFMul()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genFMul: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- genFMul");
+
+        asmjit::x86::Gp firstVal = asmjit::x86::rax;
+        asmjit::x86::Gp secondVal = asmjit::x86::rbx;
+
+        a.comment(" ; Multiply two floating point values from the stack");
+        popDS(firstVal); // Pop the first floating point value
+        popDS(secondVal); // Pop the second floating point value
+        a.movq(asmjit::x86::xmm0, firstVal); // Move the first value to XMM0
+        a.movq(asmjit::x86::xmm1, secondVal); // Move the second value to XMM1
+        a.mulsd(asmjit::x86::xmm0, asmjit::x86::xmm1); // Multiply the floating point values
+        a.movq(firstVal, asmjit::x86::xmm0); // Move the result back to a general-purpose register
+        pushDS(firstVal); // Push the result back onto the stack
+    }
+
+    // Floating point division
+    static void genFDiv()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genFDiv: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- genFDiv");
+
+        asmjit::x86::Gp firstVal = asmjit::x86::rax;
+        asmjit::x86::Gp secondVal = asmjit::x86::rbx;
+
+        a.comment(" ; Divide two floating point values from the stack");
+        popDS(firstVal); // Pop the first floating point value
+        popDS(secondVal); // Pop the second floating point value
+        a.movq(asmjit::x86::xmm0, firstVal); // Move the first value to XMM0
+        a.movq(asmjit::x86::xmm1, secondVal); // Move the second value to XMM1
+        a.divsd(asmjit::x86::xmm0, asmjit::x86::xmm1); // Divide the floating point values
+        a.movq(firstVal, asmjit::x86::xmm0); // Move the result back to a general-purpose register
+        pushDS(firstVal); // Push the result back onto the stack
+    }
+
+    static void genFMod()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genFMod: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- genFMod");
+
+        asmjit::x86::Gp firstVal = asmjit::x86::rax;
+        asmjit::x86::Gp secondVal = asmjit::x86::rbx;
+
+        a.comment(" ; Modulus two floating point values from the stack");
+        popDS(firstVal); // Pop the first floating point value
+        popDS(secondVal); // Pop the second floating point value
+        a.movq(asmjit::x86::xmm0, firstVal); // Move the first value to XMM0
+        a.movq(asmjit::x86::xmm1, secondVal); // Move the second value to XMM1
+        a.divsd(asmjit::x86::xmm0, asmjit::x86::xmm1); // Divide the values
+        a.roundsd(asmjit::x86::xmm0, asmjit::x86::xmm0, 1); // Floor the result
+        a.mulsd(asmjit::x86::xmm0, asmjit::x86::xmm1); // Multiply back
+        a.movq(firstVal, asmjit::x86::xmm0); // Move the intermediate result to firstVal
+        a.movq(asmjit::x86::xmm0, secondVal); // Move the first value back to XMM0
+        a.movq(asmjit::x86::xmm1, firstVal); // Move the intermediate result to XMM1
+        a.subsd(asmjit::x86::xmm0, asmjit::x86::xmm1); // Subtract to get modulus
+        a.movq(firstVal, asmjit::x86::xmm0); // Move the result back to a general-purpose register
+        pushDS(firstVal); // Push the result back onto the stack
+    }
+
+
+    static void genSqrt()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genSqrt: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- genSqrt");
+
+        asmjit::x86::Gp val = asmjit::x86::rax;
+        popDS(val); // Pop the value from the stack
+        a.movq(asmjit::x86::xmm0, val); // Move the value to XMM0
+        a.sqrtsd(asmjit::x86::xmm0, asmjit::x86::xmm0); // Compute the square root
+        a.movq(val, asmjit::x86::xmm0); // Move the result back to a general-purpose register
+        pushDS(val); // Push the result back onto the stack
+    }
+
+    static void genFMax()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genFMax: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- genFMax");
+
+        asmjit::x86::Gp firstVal = asmjit::x86::rax;
+        asmjit::x86::Gp secondVal = asmjit::x86::rbx;
+
+        a.comment(" ; Find the maximum of two floating point values from the stack");
+        popDS(firstVal); // Pop the first floating point value
+        popDS(secondVal); // Pop the second floating point value
+        a.movq(asmjit::x86::xmm0, firstVal); // Move the first value to XMM0
+        a.movq(asmjit::x86::xmm1, secondVal); // Move the second value to XMM1
+        a.maxsd(asmjit::x86::xmm0, asmjit::x86::xmm1); // Compute the maximum of the two values
+        a.movq(firstVal, asmjit::x86::xmm0); // Move the result back to a general-purpose register
+        pushDS(firstVal); // Push the result back onto the stack
+    }
+
+    static void genFMin()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genFMin: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- genFMin");
+
+        asmjit::x86::Gp firstVal = asmjit::x86::rax;
+        asmjit::x86::Gp secondVal = asmjit::x86::rbx;
+
+        a.comment(" ; Find the minimum of two floating point values from the stack");
+        popDS(firstVal); // Pop the first floating point value
+        popDS(secondVal); // Pop the second floating point value
+        a.movq(asmjit::x86::xmm0, firstVal); // Move the first value to XMM0
+        a.movq(asmjit::x86::xmm1, secondVal); // Move the second value to XMM1
+        a.minsd(asmjit::x86::xmm0, asmjit::x86::xmm1); // Compute the minimum of the two values
+        a.movq(firstVal, asmjit::x86::xmm0); // Move the result back to a general-purpose register
+        pushDS(firstVal); // Push the result back onto the stack
+    }
+
+
+    static void genSin()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genSin: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- genSin");
+
+        asmjit::x86::Gp val = asmjit::x86::rax;
+
+        a.comment(" ; Compute the sine of a floating point value from the stack");
+        popDS(val); // Pop the floating point value from the stack
+        a.movq(asmjit::x86::xmm0, val); // Move the value to XMM0
+
+        // Save the floating-point value to the stack to call the sin() function from the standard math library
+        a.sub(asmjit::x86::rsp, 8); // Reserve space on stack
+        a.movsd(asmjit::x86::ptr(asmjit::x86::rsp), asmjit::x86::xmm0); // Store the value
+
+        // Call the sin() function
+        a.call(reinterpret_cast<void*>(sin)); // Call the `sin` function from the standard library
+
+        // Retrieve the result from `sin` function
+        a.movsd(asmjit::x86::xmm0, asmjit::x86::ptr(asmjit::x86::rsp));
+        a.add(asmjit::x86::rsp, 8); // Free reserved space
+
+        a.movq(val, asmjit::x86::xmm0); // Move the result back to a general-purpose register
+        pushDS(val); // Push the result back onto the stack
+    }
+
+
+    static void genCos()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genCos: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- genCos");
+
+        asmjit::x86::Gp val = asmjit::x86::rax;
+
+        a.comment(" ; Compute the cosine of a floating point value from the stack");
+        popDS(val); // Pop the floating point value from the stack
+        a.movq(asmjit::x86::xmm0, val); // Move the value to XMM0
+
+        // Save the floating-point value to the stack to call the cos() function from the standard math library
+        a.sub(asmjit::x86::rsp, 8); // Reserve space on stack
+        a.movsd(asmjit::x86::ptr(asmjit::x86::rsp), asmjit::x86::xmm0); // Store the value
+
+        // Call the cos() function
+        a.call(reinterpret_cast<void*>(cos)); // Call the `cos` function from the standard library
+
+        // Retrieve the result from `cos` function
+        a.movsd(asmjit::x86::xmm0, asmjit::x86::ptr(asmjit::x86::rsp));
+        a.add(asmjit::x86::rsp, 8); // Free reserved space
+
+        a.movq(val, asmjit::x86::xmm0); // Move the result back to a general-purpose register
+        pushDS(val); // Push the result back onto the stack
+    }
+
+    static void genFAbs()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genFAbs: Assembler not initialized");
+        }
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- genFAbs");
+
+        asmjit::x86::Gp val = asmjit::x86::rax;
+        asmjit::x86::Gp mask = asmjit::x86::rbx;
+
+        uint64_t absMask = 0x7FFFFFFFFFFFFFFF; // Mask to clear the sign bit
+
+        a.comment(" ; Compute the absolute value of a floating point value from the stack");
+        popDS(val); // Pop the floating point value from the stack
+        a.mov(mask, absMask); // Move the mask into a register
+        a.and_(val, mask); // Clear the sign bit
+        pushDS(val); // Push the result back onto the stack
+    }
+
+    static void genFLess()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genFLess: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- genFLess");
+
+        asmjit::x86::Gp firstVal = asmjit::x86::rax;
+        asmjit::x86::Gp secondVal = asmjit::x86::rbx;
+
+        a.comment(" ; Compare if second floating-point value is less than the first one");
+        popDS(firstVal); // Pop the first floating-point value
+        popDS(secondVal); // Pop the second floating-point value
+        a.movq(asmjit::x86::xmm0, firstVal); // Move the first value to XMM0
+        a.movq(asmjit::x86::xmm1, secondVal); // Move the second value to XMM1
+        a.comisd(asmjit::x86::xmm0, asmjit::x86::xmm1); // Compare the two values
+
+        a.setb(asmjit::x86::al); // Set AL if less than
+        a.movzx(firstVal, asmjit::x86::al); // Zero extend AL to the full register
+        a.dec(firstVal); // Convert 1 to -1, and 0 to -1 (underflow to set -1)
+        a.neg(firstVal); // Invert results: -1 to 1, 0 to -1
+
+        pushDS(firstVal); // Push the result (-1 for true, 0 for false)
+    }
+
+    static void genFGreater()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genFGreater: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- genFGreater");
+
+        asmjit::x86::Gp firstVal = asmjit::x86::rax;
+        asmjit::x86::Gp secondVal = asmjit::x86::rbx;
+
+        a.comment(" ; Compare if second floating-point value is greater than the first one");
+        popDS(firstVal); // Pop the first floating-point value
+        popDS(secondVal); // Pop the second floating-point value
+        a.movq(asmjit::x86::xmm0, firstVal); // Move the first value to XMM0
+        a.movq(asmjit::x86::xmm1, secondVal); // Move the second value to XMM1
+        a.comisd(asmjit::x86::xmm0, asmjit::x86::xmm1); // Compare the two values
+
+        a.seta(asmjit::x86::al); // Set AL if greater than
+        a.movzx(firstVal, asmjit::x86::al); // Zero extend AL to the full register
+        a.dec(firstVal); // Convert 1 to -1, and 0 to 0
+        a.neg(firstVal); // Invert results: -1 to 1, 0 to -1
+
+        pushDS(firstVal); // Push the result (-1 for true, 0 for false)
+    }
+
+    static void genFEqual()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genFEqual: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- genFEqual");
+
+        asmjit::x86::Gp firstVal = asmjit::x86::rax;
+        asmjit::x86::Gp secondVal = asmjit::x86::rbx;
+
+        a.comment(" ; Compare if two floating-point values are equal");
+        popDS(firstVal); // Pop the first floating-point value
+        popDS(secondVal); // Pop the second floating-point value
+        a.movq(asmjit::x86::xmm0, firstVal); // Move the first value to XMM0
+        a.movq(asmjit::x86::xmm1, secondVal); // Move the second value to XMM1
+        a.comisd(asmjit::x86::xmm0, asmjit::x86::xmm1); // Compare the two values
+
+        a.sete(asmjit::x86::al); // Set AL if equal
+        a.movzx(firstVal, asmjit::x86::al); // Zero extend AL to the full register
+        a.dec(firstVal); // Convert 1 to -1, and 0 to 0
+        a.neg(firstVal); // Invert results: -1 to 1, 0 to -1
+
+        pushDS(firstVal); // Push the result (-1 for true, 0 for false)
+    }
+
+    static void genFNotEqual()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genFNotEqual: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- genFNotEqual");
+
+        asmjit::x86::Gp firstVal = asmjit::x86::rax;
+        asmjit::x86::Gp secondVal = asmjit::x86::rbx;
+
+        a.comment(" ; Compare if two floating-point values are not equal");
+        popDS(firstVal); // Pop the first floating-point value
+        popDS(secondVal); // Pop the second floating-point value
+        a.movq(asmjit::x86::xmm0, firstVal); // Move the first value to XMM0
+        a.movq(asmjit::x86::xmm1, secondVal); // Move the second value to XMM1
+        a.comisd(asmjit::x86::xmm0, asmjit::x86::xmm1); // Compare the two values
+
+        a.setne(asmjit::x86::al); // Set AL if not equal
+        a.movzx(firstVal, asmjit::x86::al); // Zero extend AL to the full register
+        a.dec(firstVal); // Convert 1 to -1, and 0 to 0
+        a.neg(firstVal); // Invert results: -1 to 1, 0 to -1
+
+        pushDS(firstVal); // Push the result (-1 for true, 0 for false)
+    }
+
+    static void genFDot()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genFDot: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- genFDot");
+
+        asmjit::x86::Gp tmpReg = asmjit::x86::rcx;
+
+        // Pop the floating-point value and move it into the XMM register
+        popDS(tmpReg);
+        a.movq(asmjit::x86::xmm0, tmpReg); // Move the integer representation of the float to XMM0
+
+        // Preserve the stack pointers
+        preserveStackPointers();
+
+        // Allocate space for the shadow space (32 bytes) + an additional space required by the ABI (8 bytes)
+        a.sub(asmjit::x86::rsp, 40);
+
+        // Call the printFloat function
+        a.call(asmjit::imm(reinterpret_cast<void*>(printFloat)));
+
+        // Restore the stack
+        a.add(asmjit::x86::rsp, 40);
+
+        // Restore the stack pointers
+        restoreStackPointers();
+    }
+
+
+    //
+    //     static void genFApproxEqual() {
+    //     if (!jc.assembler) {
+    //         throw std::runtime_error("genFApproxEqual: Assembler not initialized");
+    //     }
+    //
+    //     auto& a = *jc.assembler;
+    //     a.comment(" ; ----- genFApproxEqual");
+    //
+    //     asmjit::x86::Gp firstVal = asmjit::x86::rax;
+    //     asmjit::x86::Gp secondVal = asmjit::x86::rbx;
+    //     asmjit::x86::Gp result = asmjit::x86::rcx;
+    //
+    //     a.comment(" ; Compare if two floating-point values are approximately equal");
+    //     double epsilon = 1e-9;                    // Define a small tolerance value
+    //     asmjit::x86::Mem epsilonMem = a.newDoubleConst(asmjit::ConstPool::kScopeGlobal, epsilon);
+    //
+    //     popDS(firstVal);                          // Pop the first floating-point value
+    //     popDS(secondVal);                         // Pop the second floating-point value
+    //     a.movq(asmjit::x86::xmm0, firstVal);      // Move the first value to XMM0
+    //     a.movq(asmjit::x86::xmm1, secondVal);     // Move the second value to XMM1
+    //
+    //     a.subsd(asmjit::x86::xmm0, asmjit::x86::xmm1); // xmm0 = firstVal - secondVal
+    //     a.movsd(asmjit::x86::xmm1, epsilonMem);        // Move epsilon into xmm1
+    //     a.abss(asmjit::x86::xmm0);                    // Take the absolute value of the difference
+    //
+    //     a.comisd(asmjit::x86::xmm0, asmjit::x86::xmm1); // Compare the absolute difference with epsilon
+    //     a.setb(asmjit::x86::al);                   // Set AL if less than epsilon (i.e., approximately equal)
+    //     a.movzx(result, asmjit::x86::al);          // Zero extend AL to the full register
+    //     pushDS(result);                            // Push the result (0 for false, 1 for true)
+    // }
+
 
 private
 :
