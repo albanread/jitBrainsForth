@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 
+static bool logging = false;
+
 class JitContext
 {
 public:

@@ -150,14 +150,6 @@ inline extern void throw_with_string(const char* str)
     throw std::runtime_error(str);
 }
 
-//
-static bool logging = false;
-
-inline void checkLogging()
-{
-    logging = jc.logging;
-}
-
 
 // using ExecFunc = void (*)(ForthFunction);
 // ExecFunc exec;
@@ -860,8 +852,7 @@ public:
     // in compile mode only.
     static void genTO()
     {
-        logging = true;
-        jc.loggingON();
+
         const auto& words = *jc.words;
         size_t pos = jc.pos_next_word + 1;
 
@@ -953,8 +944,7 @@ public:
         {
             throw std::runtime_error("Unknown word in TO: " + w);
         }
-        logging = true;
-        jc.loggingON();
+
     }
 
 
@@ -1013,8 +1003,6 @@ public:
             throw std::runtime_error("Unknown word in TO: " + w);
         }
 
-        logging = false;
-        jc.loggingOFF();
     }
 
 
@@ -1167,8 +1155,7 @@ public:
         d.setCompiledFunction(compiledFunc);
         // Update position
         jc.pos_last_word = pos;
-        //logging = false;
-        //jc.loggingOFF();
+
     }
 
 
