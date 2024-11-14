@@ -25,4 +25,12 @@
 
 : rfact  DUP 2 < IF DROP 1 EXIT THEN  DUP 1- RECURSE * ;
 
+
+: tolerance  0.0000001 ;
+
+: f=  f-  fabs tolerance f< ;
+
+: f<>  f-  fabs  tolerance f< not ;
+
+
 s" loaded start.f " sprint cr

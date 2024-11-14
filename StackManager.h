@@ -113,6 +113,37 @@ public:
         return val;
     }
 
+    double popDSDouble()
+    {
+        asm volatile (
+            "mov %%r15, %0;"
+            : "=r"(dsPtr) // output
+        );
+
+        int dsDepth = dsTop - dsPtr;
+        if (dsDepth < 0)
+        {
+            printf("DS stack underflow\n");
+            throw std::runtime_error("DS stack underflow");
+        }
+
+        uint64_t intValue = *dsPtr;
+        dsPtr++;
+
+        asm volatile (
+            "mov %0, %%r15;"
+            :
+            : "r"(dsPtr) // input
+        );
+
+        // Reinterpret the uint64_t value as a double
+        double* ptrToDouble = reinterpret_cast<double*>(&intValue);
+        double value = *ptrToDouble;
+
+        return value;
+    }
+
+
     // Return Stack Operations
     void pushRS(uint64_t value)
     {
@@ -314,6 +345,7 @@ public:
         auto val = *lsPtr;
         return val;
     }
+
     // get value from a stack without popping it.
     uint64_t peekDS()
     {
@@ -324,6 +356,7 @@ public:
         auto val = *dsPtr;
         return val;
     }
+
     uint64_t peekRS()
     {
         asm volatile (
@@ -337,8 +370,8 @@ public:
     // decrement string ref on top of stack
     void decSS()
     {
-       size_t index = peekSS();
-       strIntern.decrementRef(index);
+        size_t index = peekSS();
+        strIntern.decrementRef(index);
     }
 
     void incSS()
@@ -346,7 +379,6 @@ public:
         size_t index = peekSS();
         strIntern.incrementRef(index);
     }
-
 
 
     [[nodiscard]] uint64_t getDStop() const
@@ -370,8 +402,8 @@ public:
         );
 
         uint64_t dsDepth = (reinterpret_cast<uint64_t>(dsTop) - reinterpret_cast<uint64_t>(currentDsPtr));
-        if (dsDepth ==0) return 0;
-        return (dsDepth/8);
+        if (dsDepth == 0) return 0;
+        return (dsDepth / 8);
     }
 
     [[nodiscard]] uint64_t getDSDepthInBytes() const
@@ -418,8 +450,8 @@ public:
         );
 
         uint64_t rsDepth = (reinterpret_cast<uint64_t>(rsTop) - reinterpret_cast<uint64_t>(currentRsPtr));
-        if (rsDepth ==0) return 0;
-        return (rsDepth/8);
+        if (rsDepth == 0) return 0;
+        return (rsDepth / 8);
     }
 
     [[nodiscard]] uint64_t getRSDepthInBytes() const
@@ -498,10 +530,12 @@ public:
             : "=r"(currentSsPtr) // output
         );
 
-        auto getStackValues = [](const uint64_t* top, const uint64_t* ptr, int numValues) -> std::vector<int64_t> {
+        auto getStackValues = [](const uint64_t* top, const uint64_t* ptr, int numValues) -> std::vector<int64_t>
+        {
             std::vector<int64_t> values(numValues, 0);
             int depth = top - ptr;
-            for (int i = 0; i < numValues && i < depth; ++i) {
+            for (int i = 0; i < numValues && i < depth; ++i)
+            {
                 values[i] = *(ptr + i);
             }
             return values;
@@ -513,14 +547,16 @@ public:
 
         std::cout << "\tDS \t RS \tDS (1)\tDS (2)\tDS (3)\tDS (4)\tRS (1)\tRS (2)\tRS (3)\tRS (4)\n";
         std::cout << "\t" << getDSDepth() << "\t" << getRSDepth() << "\t" << dsValues[0] << "\t" << dsValues[1] << "\t"
-                  << dsValues[2] << "\t" << dsValues[3] << "\t"
-                  << rsValues[0] << "\t" << rsValues[1] << "\t"
-                  << rsValues[2] << "\t" << rsValues[3] << "\n";
+            << dsValues[2] << "\t" << dsValues[3] << "\t"
+            << rsValues[0] << "\t" << rsValues[1] << "\t"
+            << rsValues[2] << "\t" << rsValues[3] << "\n";
 
-        std::cout << "\t" << getSSDepth() << "\t"   << "\tSS (1)\tSS (2)\tSS (3)\tSS (4)\tSS (5)\tSS (6)\tSS (7)\tSS (8)\n";
-        std::cout << "\t" << "\t" << "\t[" << ssValues[0] << "]\t[" << ssValues[1] << "]\t[" << ssValues[2] << "]\t[" << ssValues[3] << "]\t"
-               << "[" << ssValues[4] << "]\t[" << ssValues[5] << "]\t[" << ssValues[6] << "]\t[" << ssValues[7] << "]\n"
-               << std::endl;
+        std::cout << "\t" << getSSDepth() << "\t" <<
+            "\tSS (1)\tSS (2)\tSS (3)\tSS (4)\tSS (5)\tSS (6)\tSS (7)\tSS (8)\n";
+        std::cout << "\t" << "\t" << "\t[" << ssValues[0] << "]\t[" << ssValues[1] << "]\t[" << ssValues[2] << "]\t[" <<
+            ssValues[3] << "]\t"
+            << "[" << ssValues[4] << "]\t[" << ssValues[5] << "]\t[" << ssValues[6] << "]\t[" << ssValues[7] << "]\n"
+            << std::endl;
     }
 
 private:

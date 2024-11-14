@@ -196,33 +196,6 @@ public:
         auto& a = *jc.assembler;
         a.comment(" ; ----- entryFunction");
         a.nop();
-
-        // Check R15 for the value 0xA1B2C3D4
-        /*a.comment(" ; Check if R15 is 0xA1B2C3D4");
-        a.mov(asmjit::x86::rax, 0xA1B2C3D4);
-        a.cmp(asmjit::x86::r15, asmjit::x86::rax);
-
-        // Jump over the loading code if R15 matches the value 0xA1B2C3D4
-        asmjit::Label skipLoad = a.newLabel();
-        a.je(skipLoad);*/
-
-        // Load datastack to r15
-        // a.comment("; load datastack to r15");
-        // a.mov(asmjit::x86::rax, reinterpret_cast<uint64_t>(&sm.dsPtr));
-        //a.mov(asmjit::x86::r15, asmjit::x86::qword_ptr(asmjit::x86::rax));
-
-        // Load return stack to r14
-        // a.comment("; load return stack to r14");
-        // a.mov(asmjit::x86::rax, reinterpret_cast<uint64_t>(&sm.rsPtr));
-        // a.mov(asmjit::x86::r14, asmjit::x86::qword_ptr(asmjit::x86::rax));
-
-        // Load local stack to r13
-        // a.comment("; load local stack to r13");
-        // a.mov(asmjit::x86::rax, reinterpret_cast<uint64_t>(&sm.lsPtr));
-        // a.mov(asmjit::x86::r13, asmjit::x86::qword_ptr(asmjit::x86::rax));
-
-        // Label to skip to if R15 is 0xA1B2C3D4
-        //a.bind(skipLoad);
     }
 
     static void exitFunction()
@@ -233,66 +206,17 @@ public:
         }
 
         auto& a = *jc.assembler;
-
-
-        /*
-        // Check R15 for the value 0xA1B2C3D4
-        a.comment(" ; Check if R15 is 0xA1B2C3D4");
-        a.mov(asmjit::x86::rax, 0xA1B2C3D4);
-        a.cmp(asmjit::x86::r15, asmjit::x86::rax);
-        // Jump over the loading code if R15 matches the value 0xA1B2C3D4
-        asmjit::Label skipLoad = a.newLabel();
-        a.je(skipLoad);*/
-
-        //  a.comment(" ; ----- exitFunction");
-        //  a.nop();
-        //  a.comment("; save datastack from r15");
-        // // a.mov(asmjit::x86::rax, reinterpret_cast<uint64_t>(&sm.dsPtr));
-        // // a.mov(asmjit::x86::qword_ptr(asmjit::x86::rax), asmjit::x86::r15);
-        //  a.comment("; save return stack from r14");
-        //  a.mov(asmjit::x86::rax, reinterpret_cast<uint64_t>(&sm.rsPtr));
-        //  a.mov(asmjit::x86::qword_ptr(asmjit::x86::rax), asmjit::x86::r14);
-        //  a.comment("; save local stack from r13");
-        //  a.mov(asmjit::x86::rax, reinterpret_cast<uint64_t>(&sm.lsPtr));
-        //  a.mov(asmjit::x86::qword_ptr(asmjit::x86::rax), asmjit::x86::r13);
-        // Label to skip to if R15 is 0xA1B2C3D4
-        //a.bind(skipLoad);
     }
 
 
     // preserve stack pointers
     static void preserveStackPointers()
     {
-        // if (!jc.assembler)
-        // {
-        //     throw std::runtime_error("entryFunction: Assembler not initialized");
-        // }
-        // auto& a = *jc.assembler;
-        // a.comment(" ; preserve r13, r14, r15, stack pointers on dsp");
-        // // preserve r13, r14, r15 on dsp
-        //
-        // a.push(asmjit::x86::r8);
-        // a.push(asmjit::x86::r13);
-        // a.push(asmjit::x86::r14);
-        // a.push(asmjit::x86::r15);
-        // a.push(asmjit::x86::r15);
     }
 
 
     static void restoreStackPointers()
     {
-        // if (!jc.assembler)
-        // {
-        //     throw std::runtime_error("entryFunction: Assembler not initialized");
-        // }
-        // auto& a = *jc.assembler;
-        // a.comment(" ; restore r13, r14, r15, stack pointers from dsp");
-        // // restore r13, r14, r15 on dsp
-        // a.pop(asmjit::x86::r15);
-        // a.pop(asmjit::x86::r15);
-        // a.pop(asmjit::x86::r14);
-        // a.pop(asmjit::x86::r13);
-        // a.pop(asmjit::x86::r8);
     }
 
 
@@ -852,7 +776,6 @@ public:
     // in compile mode only.
     static void genTO()
     {
-
         const auto& words = *jc.words;
         size_t pos = jc.pos_next_word + 1;
 
@@ -944,7 +867,6 @@ public:
         {
             throw std::runtime_error("Unknown word in TO: " + w);
         }
-
     }
 
 
@@ -1002,7 +924,6 @@ public:
         {
             throw std::runtime_error("Unknown word in TO: " + w);
         }
-
     }
 
 
@@ -1155,7 +1076,6 @@ public:
         d.setCompiledFunction(compiledFunc);
         // Update position
         jc.pos_last_word = pos;
-
     }
 
 
@@ -4015,7 +3935,6 @@ shiftAction(shiftAmount);                    \
         pushDS(firstVal); // Push the result back onto the stack
     }
 
-    // TODO: wrong order
 
     static void genFSub()
     {
@@ -4033,8 +3952,8 @@ shiftAction(shiftAmount);                    \
         a.comment(" ; Subtract two floating point values from the stack");
         popDS(firstVal); // Pop the first floating point value
         popDS(secondVal); // Pop the second floating point value
-        a.movq(asmjit::x86::xmm0, firstVal); // Move the first value to XMM0
-        a.movq(asmjit::x86::xmm1, secondVal); // Move the second value to XMM1
+        a.movq(asmjit::x86::xmm0, secondVal);
+        a.movq(asmjit::x86::xmm1, firstVal);
         a.subsd(asmjit::x86::xmm0, asmjit::x86::xmm1); // Subtract the floating point values
         a.movq(firstVal, asmjit::x86::xmm0); // Move the result back to a general-purpose register
         pushDS(firstVal); // Push the result back onto the stack
@@ -4081,8 +4000,8 @@ shiftAction(shiftAmount);                    \
         a.comment(" ; Divide two floating point values from the stack");
         popDS(firstVal); // Pop the first floating point value
         popDS(secondVal); // Pop the second floating point value
-        a.movq(asmjit::x86::xmm0, firstVal); // Move the first value to XMM0
-        a.movq(asmjit::x86::xmm1, secondVal); // Move the second value to XMM1
+        a.movq(asmjit::x86::xmm0, secondVal);
+        a.movq(asmjit::x86::xmm1, firstVal);
         a.divsd(asmjit::x86::xmm0, asmjit::x86::xmm1); // Divide the floating point values
         a.movq(firstVal, asmjit::x86::xmm0); // Move the result back to a general-purpose register
         pushDS(firstVal); // Push the result back onto the stack
@@ -4104,8 +4023,8 @@ shiftAction(shiftAmount);                    \
         a.comment(" ; Modulus two floating point values from the stack");
         popDS(firstVal); // Pop the first floating point value
         popDS(secondVal); // Pop the second floating point value
-        a.movq(asmjit::x86::xmm0, firstVal); // Move the first value to XMM0
-        a.movq(asmjit::x86::xmm1, secondVal); // Move the second value to XMM1
+        a.movq(asmjit::x86::xmm0, secondVal);
+        a.movq(asmjit::x86::xmm1, firstVal);
         a.divsd(asmjit::x86::xmm0, asmjit::x86::xmm1); // Divide the values
         a.roundsd(asmjit::x86::xmm0, asmjit::x86::xmm0, 1); // Floor the result
         a.mulsd(asmjit::x86::xmm0, asmjit::x86::xmm1); // Multiply back
@@ -4199,16 +4118,10 @@ shiftAction(shiftAmount);                    \
         popDS(val); // Pop the floating point value from the stack
         a.movq(asmjit::x86::xmm0, val); // Move the value to XMM0
 
-        // Save the floating-point value to the stack to call the sin() function from the standard math library
-        a.sub(asmjit::x86::rsp, 8); // Reserve space on stack
-        a.movsd(asmjit::x86::ptr(asmjit::x86::rsp), asmjit::x86::xmm0); // Store the value
-
         // Call the sin() function
+        a.sub(asmjit::x86::rsp, 40); // Reserve space on stack
         a.call(reinterpret_cast<void*>(sin)); // Call the `sin` function from the standard library
-
-        // Retrieve the result from `sin` function
-        a.movsd(asmjit::x86::xmm0, asmjit::x86::ptr(asmjit::x86::rsp));
-        a.add(asmjit::x86::rsp, 8); // Free reserved space
+        a.add(asmjit::x86::rsp, 40); // Free reserved space
 
         a.movq(val, asmjit::x86::xmm0); // Move the result back to a general-purpose register
         pushDS(val); // Push the result back onto the stack
@@ -4230,18 +4143,10 @@ shiftAction(shiftAmount);                    \
         a.comment(" ; Compute the cosine of a floating point value from the stack");
         popDS(val); // Pop the floating point value from the stack
         a.movq(asmjit::x86::xmm0, val); // Move the value to XMM0
-
-        // Save the floating-point value to the stack to call the cos() function from the standard math library
-        a.sub(asmjit::x86::rsp, 8); // Reserve space on stack
-        a.movsd(asmjit::x86::ptr(asmjit::x86::rsp), asmjit::x86::xmm0); // Store the value
-
         // Call the cos() function
+        a.sub(asmjit::x86::rsp, 40); // Reserve space on stack
         a.call(reinterpret_cast<void*>(cos)); // Call the `cos` function from the standard library
-
-        // Retrieve the result from `cos` function
-        a.movsd(asmjit::x86::xmm0, asmjit::x86::ptr(asmjit::x86::rsp));
-        a.add(asmjit::x86::rsp, 8); // Free reserved space
-
+        a.add(asmjit::x86::rsp, 40); // Free reserved space
         a.movq(val, asmjit::x86::xmm0); // Move the result back to a general-purpose register
         pushDS(val); // Push the result back onto the stack
     }
@@ -4269,6 +4174,7 @@ shiftAction(shiftAmount);                    \
 
 
     // TODO comparisons
+
     static void genFLess()
     {
         if (!jc.assembler)
@@ -4283,19 +4189,23 @@ shiftAction(shiftAmount);                    \
         asmjit::x86::Gp secondVal = asmjit::x86::rbx;
 
         a.comment(" ; Compare if second floating-point value is less than the first one");
-        popDS(firstVal); // Pop the first floating-point value
-        popDS(secondVal); // Pop the second floating-point value
-        a.movq(asmjit::x86::xmm0, firstVal); // Move the first value to XMM0
-        a.movq(asmjit::x86::xmm1, secondVal); // Move the second value to XMM1
+        popDS(secondVal); // Pop the second floating-point value (firstVal should store the second one)
+        popDS(firstVal); // Pop the first floating-point value (secondVal should store the first one)
+
+        a.movq(asmjit::x86::xmm0, firstVal); // Move the second value to XMM0
+        a.movq(asmjit::x86::xmm1, secondVal); // Move the first value to XMM1
         a.comisd(asmjit::x86::xmm0, asmjit::x86::xmm1); // Compare the two values
 
-        a.setb(asmjit::x86::al); // Set AL if less than
+        a.setb(asmjit::x86::al); // Set AL to 1 if less than, 0 otherwise
+
         a.movzx(firstVal, asmjit::x86::al); // Zero extend AL to the full register
-        a.dec(firstVal); // Convert 1 to -1, and 0 to -1 (underflow to set -1)
-        a.neg(firstVal); // Invert results: -1 to 1, 0 to -1
+
+        // Now convert the boolean result to the expected -1 for true and 0 for false
+        a.neg(firstVal); // Perform two's complement negation to get -1 if AL was set to 1
 
         pushDS(firstVal); // Push the result (-1 for true, 0 for false)
     }
+
 
     static void genFGreater()
     {
@@ -4317,69 +4227,18 @@ shiftAction(shiftAmount);                    \
         a.movq(asmjit::x86::xmm1, secondVal); // Move the second value to XMM1
         a.comisd(asmjit::x86::xmm0, asmjit::x86::xmm1); // Compare the two values
 
-        a.seta(asmjit::x86::al); // Set AL if greater than
+        a.setb(asmjit::x86::al); // Set AL to 1 if less than, 0 otherwise
+
         a.movzx(firstVal, asmjit::x86::al); // Zero extend AL to the full register
-        a.dec(firstVal); // Convert 1 to -1, and 0 to 0
-        a.neg(firstVal); // Invert results: -1 to 1, 0 to -1
+
+        // Now convert the boolean result to the expected -1 for true and 0 for false
+        a.neg(firstVal); // Perform two's complement negation to get -1 if AL was set to 1
 
         pushDS(firstVal); // Push the result (-1 for true, 0 for false)
     }
 
-    static void genFEqual()
-    {
-        if (!jc.assembler)
-        {
-            throw std::runtime_error("genFEqual: Assembler not initialized");
-        }
 
-        auto& a = *jc.assembler;
-        a.comment(" ; ----- genFEqual");
-
-        asmjit::x86::Gp firstVal = asmjit::x86::rax;
-        asmjit::x86::Gp secondVal = asmjit::x86::rbx;
-
-        a.comment(" ; Compare if two floating-point values are equal");
-        popDS(firstVal); // Pop the first floating-point value
-        popDS(secondVal); // Pop the second floating-point value
-        a.movq(asmjit::x86::xmm0, firstVal); // Move the first value to XMM0
-        a.movq(asmjit::x86::xmm1, secondVal); // Move the second value to XMM1
-        a.comisd(asmjit::x86::xmm0, asmjit::x86::xmm1); // Compare the two values
-
-        a.sete(asmjit::x86::al); // Set AL if equal
-        a.movzx(firstVal, asmjit::x86::al); // Zero extend AL to the full register
-        a.dec(firstVal); // Convert 1 to -1, and 0 to 0
-        a.neg(firstVal); // Invert results: -1 to 1, 0 to -1
-
-        pushDS(firstVal); // Push the result (-1 for true, 0 for false)
-    }
-
-    static void genFNotEqual()
-    {
-        if (!jc.assembler)
-        {
-            throw std::runtime_error("genFNotEqual: Assembler not initialized");
-        }
-
-        auto& a = *jc.assembler;
-        a.comment(" ; ----- genFNotEqual");
-
-        asmjit::x86::Gp firstVal = asmjit::x86::rax;
-        asmjit::x86::Gp secondVal = asmjit::x86::rbx;
-
-        a.comment(" ; Compare if two floating-point values are not equal");
-        popDS(firstVal); // Pop the first floating-point value
-        popDS(secondVal); // Pop the second floating-point value
-        a.movq(asmjit::x86::xmm0, firstVal); // Move the first value to XMM0
-        a.movq(asmjit::x86::xmm1, secondVal); // Move the second value to XMM1
-        a.comisd(asmjit::x86::xmm0, asmjit::x86::xmm1); // Compare the two values
-
-        a.setne(asmjit::x86::al); // Set AL if not equal
-        a.movzx(firstVal, asmjit::x86::al); // Zero extend AL to the full register
-        a.dec(firstVal); // Convert 1 to -1, and 0 to 0
-        a.neg(firstVal); // Invert results: -1 to 1, 0 to -1
-
-        pushDS(firstVal); // Push the result (-1 for true, 0 for false)
-    }
+    constexpr static double tolerance = 1e-7;
 
     static void genFDot()
     {

@@ -39,7 +39,8 @@ void compileWord(const std::string& wordName, const std::string& compileText, co
 
 inline void test_against_ds(const std::string& words, const uint64_t expected_top)
 {
-    try {
+    try
+    {
         sm.resetDS(); // to get a clean stack
         std::cout << "Running: " << words << std::endl;
         interpreter(words);
@@ -49,38 +50,78 @@ inline void test_against_ds(const std::string& words, const uint64_t expected_to
         if (result != expected_top)
         {
             failed_tests++;
-            std::cout << "!!!! ---- Failed test: " << words << " Expected: " << expected_top << " but got: " << result << " <<<<< ---- Failed test !!!" << std::endl;
+            std::cout << "!!!! ---- Failed test: " << words << " Expected: " << expected_top << " but got: " << result
+                << " <<<<< ---- Failed test !!!" << std::endl;
         }
         else
         {
             passed_tests++;
             std::cout << "Passed test: " << words << " = " << expected_top << std::endl;
         }
-    } catch (const std::runtime_error& e) {
+    }
+    catch (const std::runtime_error& e)
+    {
         failed_tests++;
-        std::cout << "!!!! ---- Exception occurred: " << e.what() << " for test: " << words << " <<<<< ---- Failed test !!!" << std::endl;
+        std::cout << "!!!! ---- Exception occurred: " << e.what() << " for test: " << words <<
+            " <<<<< ---- Failed test !!!" << std::endl;
     }
 }
+
+inline void ftest_against_ds(const std::string& words, const float expected_top)
+{
+    const double tolerance = 1e-4;
+    try
+    {
+        sm.resetDS(); // Reset the data stack to get a clean stack
+        std::cout << "Running: " << words << std::endl;
+        interpreter(words);
+
+        float result = sm.popDSDouble();
+        total_tests++;
+
+        if (std::abs(result - expected_top) < tolerance)
+        {
+            passed_tests++; // Increment passed tests instead of failed
+            std::cout << "Passed test: " << words << " = " << result << std::endl;
+        }
+        else
+        {
+            failed_tests++; // Correct the logical check
+            std::cout << "!!!! ---- Failed test: " << words << " Expected: " << expected_top
+                      << " but got: " << result << " <<<<< ---- Failed test !!!" << std::endl;
+        }
+    }
+    catch (const std::runtime_error& e)
+    {
+        failed_tests++;
+        std::cout << "!!!! ---- Exception occurred: " << e.what() << " for test: " << words
+                  << " <<<<< ---- Failed test !!!" << std::endl;
+    }
+}
+
 
 inline void testCompileAndRun(const std::string& wordName,
                               const std::string& wordDefinition,
                               const std::string& testString, int expectedResult)
 {
-    try {
+    try
+    {
         // source code is : wordname wordDefinition ;
         std::string sourceCode = wordName + " " + wordDefinition + " ;";
         compileWord(wordName, wordDefinition, sourceCode);
         test_against_ds(testString, expectedResult);
         d.forgetLastWord();
-    } catch (const std::runtime_error& e) {
+    }
+    catch (const std::runtime_error& e)
+    {
         std::cerr << "Runtime error: " << e.what() << std::endl;
         // Handle the error as needed (e.g., logging, cleanup)
-    } catch (const std::exception& e) {
+    } catch (const std::exception& e)
+    {
         std::cerr << "An unexpected error occurred: " << e.what() << std::endl;
         // Handle other exceptions as needed
     }
 }
-
 
 
 inline void testInterpreter(const std::string& test_name, const std::string& testString,
@@ -172,7 +213,6 @@ void run_basic_tests()
     test_against_ds(" 2 invert ", -3);
 
 
-
     // Test if 3 is less than 5 (should be -1, which represents true in Forth)
     test_against_ds("3 5 <", -1);
 
@@ -196,16 +236,16 @@ void run_basic_tests()
     test_against_ds("0 0=", -1);
 
     // Tests for 0<
-    test_against_ds("0 0<", 0);   // 0 is not less than 0, hence false (0)
-    test_against_ds("1 0<", 0);   // 1 is not less than 0, hence false (0)
+    test_against_ds("0 0<", 0); // 0 is not less than 0, hence false (0)
+    test_against_ds("1 0<", 0); // 1 is not less than 0, hence false (0)
     test_against_ds("-1 0<", -1); // -1 is less than 0, hence true (-1)
-    test_against_ds("10 0<", 0);  // 10 is not less than 0, hence false (0)
-    test_against_ds("-10 0<", -1);// -10 is less than 0, hence true (-1)
+    test_against_ds("10 0<", 0); // 10 is not less than 0, hence false (0)
+    test_against_ds("-10 0<", -1); // -10 is less than 0, hence true (-1)
 
     // Tests for 0>
-    test_against_ds("0 0>", 0);   // 0 is not greater than 0, hence false (0)
-    test_against_ds("1 0>", -1);  // 1 is greater than 0, hence true (-1)
-    test_against_ds("-1 0>", 0);  // -1 is not greater than 0, hence false (0)
+    test_against_ds("0 0>", 0); // 0 is not greater than 0, hence false (0)
+    test_against_ds("1 0>", -1); // 1 is greater than 0, hence true (-1)
+    test_against_ds("-1 0>", 0); // -1 is not greater than 0, hence false (0)
     test_against_ds("10 0>", -1); // 10 is greater than 0, hence true (-1)
     test_against_ds("-10 0>", 0); // -10 is not greater than 0, hence false (0)
 
@@ -411,6 +451,80 @@ void run_basic_tests()
                       -1);
 
     test_against_ds(R"(s" 1 2 3 4 5 6 7 8 " s" 6 " strpos)", 10);
+
+
+    ftest_against_ds("3.14159", 3.14159); // Single float value
+    ftest_against_ds("2.0 2.0 f+", 4.0); // Addition resulting in a float
+    ftest_against_ds("5.0 1.0 f-", 4.0); // Subtraction resulting in a float
+    ftest_against_ds("10.0 2.0 f/", 5.0); // Division resulting in a float
+    ftest_against_ds("3.0 2.0 f*", 6.0); // Multiplication resulting in a float
+    ftest_against_ds("-3.0 fabs", 3.0);
+    ftest_against_ds("5.5 2.0 fmod", 1.5);
+
+
+    // ### Cosine Function Test Cases
+    //
+    //     | Input (Radians) | Expected Result (Decimal) |
+    //     |-----------------|---------------------------|
+    //     | 0.0             | 1.0                       |
+    //     | 1.5708          | 0.0                       |
+    //     | 3.1416          | -1.0                      |
+    //     | 4.7124          | 0.0                       |
+    //     | 6.2832          | 1.0                       |
+    //     | 1.0472          | 0.5                       |
+    //     | 0.7854          | 0.7071                    |
+    //     | 0.5236          | 0.8660                    |
+
+
+    ftest_against_ds("0.0 fcos", 1.0);
+    ftest_against_ds("1.5708 fcos", 0.0);
+    ftest_against_ds("3.1416 fcos", -1.0);
+    ftest_against_ds("4.7124 fcos", 0.0);
+    ftest_against_ds("6.2832 fcos", 1.0);
+    ftest_against_ds("1.0472 fcos", 0.5);
+    ftest_against_ds("0.7854 fcos", 0.7071);
+    ftest_against_ds("0.5236 fcos", 0.8660);
+    //
+    // ### Sine Function Test Cases
+    //
+    //     | Input (Radians) | Expected Result (Decimal) |
+    //     |-----------------|---------------------------|
+    //     | 0.0             | 0.0                       |
+    //     | 1.5708          | 1.0                       |
+    //     | 3.1416          | 0.0                       |
+    //     | 4.7124          | -1.0                      |
+    //     | 6.2832          | 0.0                       |
+    //     | 1.0472          | 0.8660                    |
+    //     | 0.7854          | 0.7071                    |
+    //     | 0.5236          | 0.5                       |
+
+    ftest_against_ds("0.0 fsin", 0.0);
+    ftest_against_ds("1.5708 fsin", 1.0);
+    ftest_against_ds("3.1416 fsin", 0.0);
+    ftest_against_ds("4.7124 fsin", -1.0);
+    ftest_against_ds("6.2832 fsin", 0.0);
+    ftest_against_ds("1.0472 fsin", 0.8660);
+    ftest_against_ds("0.7854 fsin", 0.7071);
+    ftest_against_ds("0.5236 fsin", 0.5);
+
+    // f<
+    test_against_ds("1.0 2.0 f<", -1); // 1.0 < 2.0 is true
+    test_against_ds("2.0 1.0 f<", 0);  // 2.0 < 1.0 is false
+    test_against_ds("1.0 1.0 f<", 0);  // 1.0 < 1.0 is false
+
+    // f>
+    test_against_ds("2.0 1.0 f>", -1); // 2.0 > 1.0 is true
+    test_against_ds("1.0 2.0 f>", 0);  // 1.0 > 2.0 is false
+    test_against_ds("1.0 1.0 f>", 0);  // 1.0 > 1.0 is false
+
+    // f=
+    test_against_ds("1.0 1.0 f=", -1); // 1.0 = 1.0 is true
+    test_against_ds("1.0 2.0 f=", 0);  // 1.0 = 2.0 is false
+
+    // f<>
+    test_against_ds("1.0 2.0 f<>", -1); // 1.0 <> 2.0 is true
+    test_against_ds("2.0 1.0 f<>", -1); // 2.0 <> 1.0 is true
+    test_against_ds("1.0 1.0 f<>", 0);  // 1.0 <> 1.0 is false
 
 
     // Print summary after running tests
