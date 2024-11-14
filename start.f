@@ -1,11 +1,10 @@
 ( start.f define some common words )
 
-: tolerance  0.0000001 ;
+  0.0000001 fconstant tolerance
 
 : f=  f-  fabs tolerance f< ;
 
 : f<>  f-  fabs  tolerance f< not ;
-
 
 : space 32 emit ;
 

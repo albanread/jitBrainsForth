@@ -913,7 +913,7 @@ public:
             else if (word_type == ForthWordType::STRING) // variable
             {
                 // update a string variable from the string stack.
-                auto variable_address = reinterpret_cast<size_t>(fword->data);
+                auto variable_address =d.get_data_ptr();
                 size_t string_address = sm.popSS();
                 strIntern.incrementRef(string_address);
                 fword->data = string_address; // update the data pointer to point to the string
@@ -1038,6 +1038,50 @@ public:
         d.setCompiledFunction(compiledFunc);
         jc.pos_last_word = pos;
     }
+
+
+static void genImmediatefConstant()
+{
+    const auto& words = *jc.words;
+    size_t pos = jc.pos_next_word + 1;
+
+    std::string word = words[pos];
+    jc.word = word;
+
+    // Pop the initial value from the data stack
+    double initialValue;
+    try {
+        initialValue = sm.popDSDouble();
+    } catch (const std::exception& e) {
+        throw std::runtime_error(std::string("Failed to pop double from stack: ") + e.what());
+    }
+
+    jc.resetContext();
+    if (!jc.assembler)
+    {
+        throw std::runtime_error("entryFunction: Assembler not initialized");
+    }
+    auto& a = *jc.assembler;
+    commentWithWord(" ; ----- immediate value: ", word);
+
+    // Add the word to the dictionary as a value
+    d.addWord(word.c_str(), nullptr, nullptr, nullptr, nullptr);
+
+
+    // Set the initial value explicitly
+    d.setDataDouble(initialValue);
+
+    auto dataAddress = d.get_data_ptr();
+    d.setType(ForthWordType::CONSTANTFLOAT); // value type
+
+    a.comment(" ; ----- fetch value");
+    loadDS(dataAddress);
+    a.ret();
+
+    ForthFunction compiledFunc = endGeneration();
+    d.setCompiledFunction(compiledFunc);
+    jc.pos_last_word = pos;
+}
 
 
     // immediate value, runs when value is called.

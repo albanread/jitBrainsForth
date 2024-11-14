@@ -193,6 +193,10 @@ void add_words()
     d.addInterpretOnlyImmediate("constant", nullptr, nullptr, nullptr, JitGenerator::genImmediateConstant);
     d.addInterpretOnlyImmediate("variable", nullptr, nullptr, nullptr, JitGenerator::genImmediateVariable);
 
+    d.addInterpretOnlyImmediate("fconstant", nullptr, nullptr, nullptr, JitGenerator::genImmediateConstant);
+
+
+
     d.addWord("DEPTH", JitGenerator::genDepth2, JitGenerator::build_forth(JitGenerator::genDepth2), nullptr, nullptr);
     d.addWord("FORGET", JitGenerator::genForget, JitGenerator::build_forth(JitGenerator::genForget), nullptr, nullptr);
     d.addWord(".", JitGenerator::genDot, JitGenerator::build_forth(JitGenerator::genDot), nullptr, nullptr);

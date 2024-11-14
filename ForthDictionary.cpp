@@ -190,6 +190,25 @@ void ForthDictionary::setData(uint64_t data) const
     latestWord->data = data;
 }
 
+
+void ForthDictionary::setDataDouble(const double data) const
+{
+    if (latestWord == nullptr)
+    {
+        throw std::runtime_error("No latest word available to set data");
+    }
+    latestWord->setData(data);
+}
+
+void ForthDictionary::setData(void* data) const
+{
+    if (latestWord == nullptr)
+    {
+        throw std::runtime_error("No latest word available to set data");
+    }
+    latestWord->setData(data);
+}
+
 void ForthDictionary::setCompiledFunction(ForthFunction func) const
 {
     latestWord->compiledFunc = func;
@@ -231,10 +250,33 @@ void ForthDictionary::setData(uint64_t d)
     latestWord->data = d;
 }
 
-uint64_t ForthDictionary::getData() const
+ uint64_t ForthDictionary::getData() const
 {
-    return latestWord->data;
+    if (latestWord == nullptr)
+    {
+        throw std::runtime_error("No latest word available to get data");
+    }
+    return latestWord->getUint64();
 }
+
+double ForthDictionary::getDataAsDouble() const
+{
+    if (latestWord == nullptr)
+    {
+        throw std::runtime_error("No latest word available to get data");
+    }
+    return latestWord->getDouble();
+}
+
+void* ForthDictionary::getDataAsPointer() const
+{
+    if (latestWord == nullptr)
+    {
+        throw std::runtime_error("No latest word available to get data");
+    }
+    return latestWord->getPointer();
+}
+
 
 // get and set type
 ForthWordType ForthDictionary::getType() const
@@ -309,6 +351,7 @@ std::string prettyPrintSourceCode(const std::string& source)
 }
 
 
+
 void ForthDictionary::displayWord(std::string name)
 {
     std::cout << "Displaying word " << name << std::endl;
@@ -327,7 +370,15 @@ void ForthDictionary::displayWord(std::string name)
     std::cout << "Interp    : " << std::hex << reinterpret_cast<uintptr_t>(word->terpFunc) << std::endl;
     std::cout << "State: " << ForthWordStateToString(word->state) << std::endl;
     std::cout << "Type: " << ForthWordTypeToString(word->type) << std::endl;
-    std::cout << "Data: " << std::dec << word->data << std::endl;
+    if (std::holds_alternative<uint64_t>(word->data)) {
+        std::cout << "Data contains uint64_t: " << std::get<uint64_t>(word->data) << std::endl;
+    } else if (std::holds_alternative<double>(word->data)) {
+        std::cout << "Data contains double: " << std::get<double>(word->data) << std::endl;
+    } else if (std::holds_alternative<void*>(word->data)) {
+        std::cout << "Data contains void*: " << std::get<void*>(word->data) << std::endl;
+    } else {
+        std::cerr << "Data contains unknown type" << std::endl;
+    }
     std::cout << "Link: " << word->link << std::endl;
 
     auto it = sourceCodeMap.find(word->name);

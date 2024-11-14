@@ -5,7 +5,6 @@
 #include <cstdint>
 #include <stdexcept>
 #include <iostream>
-#include <array>
 #include <algorithm>
 #include "StringInterner.h"
 
@@ -76,7 +75,6 @@ public:
         );
     }
 
-
     void resetDS()
     {
         dsPtr = dsTop;
@@ -85,7 +83,7 @@ public:
             :
             : "r"(dsPtr) // input
         );
-        std::fill(dsStack, dsStack + 1024 * 1024 * 2, 0);
+        std::fill(dsStack, dsStack + dsSize, 0);
     }
 
     uint64_t popDS()
@@ -143,7 +141,6 @@ public:
         return value;
     }
 
-
     // Return Stack Operations
     void pushRS(uint64_t value)
     {
@@ -176,7 +173,7 @@ public:
             :
             : "r"(rsPtr) // input
         );
-        std::fill(rsStack, rsStack + 1024 * 1024 * 1, 0);
+        std::fill(rsStack, rsStack + rsSize, 0);
     }
 
     uint64_t popRS()
@@ -236,7 +233,7 @@ public:
             :
             : "r"(lsPtr) // input
         );
-        std::fill(lsStack, lsStack + 1024 * 1024, 0);
+        std::fill(lsStack, lsStack + lsSize, 0);
     }
 
     uint64_t popLS()
@@ -296,7 +293,7 @@ public:
             :
             : "r"(ssPtr) // input
         );
-        std::fill(ssStack, ssStack + 1024 * 1024, 0);
+        std::fill(ssStack, ssStack + ssSize, 0);
     }
 
     uint64_t popSS()
@@ -324,8 +321,7 @@ public:
         return val;
     }
 
-    // peek stacks
-    // get value from a stack without popping it.
+    // Peek stack operations
     uint64_t peekSS()
     {
         asm volatile (
@@ -346,7 +342,6 @@ public:
         return val;
     }
 
-    // get value from a stack without popping it.
     uint64_t peekDS()
     {
         asm volatile (
@@ -367,7 +362,7 @@ public:
         return val;
     }
 
-    // decrement string ref on top of stack
+    // Decrement string ref on top of stack
     void decSS()
     {
         size_t index = peekSS();
@@ -379,7 +374,6 @@ public:
         size_t index = peekSS();
         strIntern.incrementRef(index);
     }
-
 
     [[nodiscard]] uint64_t getDStop() const
     {
@@ -401,9 +395,9 @@ public:
             : "=r"(currentDsPtr) // output
         );
 
-        uint64_t dsDepth = (reinterpret_cast<uint64_t>(dsTop) - reinterpret_cast<uint64_t>(currentDsPtr));
+        uint64_t dsDepth = reinterpret_cast<uint64_t>(dsTop) - reinterpret_cast<uint64_t>(currentDsPtr);
         if (dsDepth == 0) return 0;
-        return (dsDepth / 8);
+        return dsDepth / 8;
     }
 
     [[nodiscard]] uint64_t getDSDepthInBytes() const
@@ -416,10 +410,9 @@ public:
             : "=r"(currentDsPtr) // output
         );
 
-        uint64_t dsDepth = (reinterpret_cast<uint64_t>(dsTop) - reinterpret_cast<uint64_t>(currentDsPtr));
+        uint64_t dsDepth = reinterpret_cast<uint64_t>(dsTop) - reinterpret_cast<uint64_t>(currentDsPtr);
         return dsDepth;
     }
-
 
     [[nodiscard]] uint64_t getRStop() const
     {
@@ -449,9 +442,9 @@ public:
             : "=r"(currentRsPtr) // output
         );
 
-        uint64_t rsDepth = (reinterpret_cast<uint64_t>(rsTop) - reinterpret_cast<uint64_t>(currentRsPtr));
+        uint64_t rsDepth = reinterpret_cast<uint64_t>(rsTop) - reinterpret_cast<uint64_t>(currentRsPtr);
         if (rsDepth == 0) return 0;
-        return (rsDepth / 8);
+        return rsDepth / 8;
     }
 
     [[nodiscard]] uint64_t getRSDepthInBytes() const
@@ -464,7 +457,7 @@ public:
             : "=r"(currentRsPtr) // output
         );
 
-        uint64_t rsDepth = (reinterpret_cast<uint64_t>(rsTop) - reinterpret_cast<uint64_t>(currentRsPtr));
+        uint64_t rsDepth = reinterpret_cast<uint64_t>(rsTop) - reinterpret_cast<uint64_t>(currentRsPtr);
         return rsDepth;
     }
 
@@ -503,9 +496,9 @@ public:
             : "=r"(currentSsPtr) // output
         );
 
-        uint64_t ssDepth = (reinterpret_cast<uint64_t>(ssTop) - reinterpret_cast<uint64_t>(currentSsPtr));
+        uint64_t ssDepth = reinterpret_cast<uint64_t>(ssTop) - reinterpret_cast<uint64_t>(currentSsPtr);
         if (ssDepth == 0) return 0;
-        return (ssDepth / 8);
+        return ssDepth / 8;
     }
 
     void displayStacks() const
@@ -560,29 +553,26 @@ public:
     }
 
 private:
-    StackManager()
+    StackManager() : dsSize(1024 * 1024 * 2), rsSize(1024 * 1024 * 1), lsSize(1024 * 1024), ssSize(1024 * 1024)
     {
-        std::fill(dsUnderCanary, dsUnderCanary + 1024, 9999999);
-        std::fill(dsStack, dsStack + 1024 * 1024 * 2, 0);
-        std::fill(dsOverCanary, dsOverCanary + 1024, 8888888);
-        std::fill(rsUnderCanary, rsUnderCanary + 1024, 7777777);
-        std::fill(rsStack, rsStack + 1024 * 1024 * 1, 0);
-        std::fill(rsOverCanary, rsOverCanary + 1024, 6666666);
-        std::fill(lsUnderCanary, lsUnderCanary + 1024, 5555555);
-        std::fill(lsStack, lsStack + 1024 * 1024, 0);
-        std::fill(lsOverCanary, lsOverCanary + 1024, 4444444);
-        std::fill(ssUnderCanary, ssUnderCanary + 1024, 3333333);
-        std::fill(ssStack, ssStack + 1024 * 1024, 0);
-        std::fill(ssOverCanary, ssOverCanary + 1024, 2222222);
+        dsStack = new uint64_t[dsSize];
+        rsStack = new uint64_t[rsSize];
+        lsStack = new uint64_t[lsSize];
+        ssStack = new uint64_t[ssSize];
 
-        dsTop = dsStack + 1024 * 1024 * 2 - 4;
-        dsPtr = dsStack + 1024 * 1024 * 2 - 4;
-        rsTop = rsStack + 1024 * 1024 * 1 - 4;
-        rsPtr = rsStack + 1024 * 1024 * 1 - 4;
-        lsTop = lsStack + 1024 * 1024 * 1 - 4;
-        lsPtr = lsStack + 1024 * 1024 * 1 - 4;
-        ssTop = ssStack + 1024 * 1024 - 4;
-        ssPtr = ssStack + 1024 * 1024 - 4;
+        std::fill(dsStack, dsStack + dsSize, 0);
+        std::fill(rsStack, rsStack + rsSize, 0);
+        std::fill(lsStack, lsStack + lsSize, 0);
+        std::fill(ssStack, ssStack + ssSize, 0);
+
+        dsTop = dsStack + dsSize - 4;
+        dsPtr = dsTop;
+        rsTop = rsStack + rsSize - 4;
+        rsPtr = rsTop;
+        lsTop = lsStack + lsSize - 4;
+        lsPtr = lsTop;
+        ssTop = ssStack + ssSize - 4;
+        ssPtr = ssTop;
 
         asm volatile (
             "mov %0, %%r15;"
@@ -609,20 +599,23 @@ private:
         );
     }
 
-    ~StackManager() = default;
+    ~StackManager()
+    {
+        delete[] dsStack;
+        delete[] rsStack;
+        delete[] lsStack;
+        delete[] ssStack;
+    }
 
-    uint64_t dsUnderCanary[1024];
-    uint64_t dsStack[1024 * 1024 * 2];
-    uint64_t dsOverCanary[1024];
-    uint64_t rsUnderCanary[1024];
-    uint64_t rsStack[1024 * 1024 * 1];
-    uint64_t rsOverCanary[1024];
-    uint64_t lsUnderCanary[1024];
-    uint64_t lsStack[1024 * 1024];
-    uint64_t lsOverCanary[1024];
-    uint64_t ssUnderCanary[1024];
-    uint64_t ssStack[1024 * 1024];
-    uint64_t ssOverCanary[1024];
+    uint64_t* dsStack;
+    uint64_t* rsStack;
+    uint64_t* lsStack;
+    uint64_t* ssStack;
+
+    const size_t dsSize;
+    const size_t rsSize;
+    const size_t lsSize;
+    const size_t ssSize;
 
 public:
     uint64_t* dsTop;

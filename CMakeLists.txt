@@ -8,13 +8,13 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 
-
 # Link SDL2 library
 find_library(SDL2_LIBRARY SDL2 H:/SDL2/lib)
 find_library(SDL2_MAIN_LIBRARY SDL2main H:/SDL2/lib)
+set(CMAKE_CXX_FLAGS_RELEASE "-O0 -s -DNDEBUG")
 
 # Set compiler flags for release mode
-set(CMAKE_CXX_FLAGS_RELEASE "-O0 -DNDEBUG")
+
 
 # Add the executable
 add_executable(jitBrainsForth

@@ -241,6 +241,42 @@ inline bool processLoopCheckCommands(auto& it, const auto& words, std::string& a
     return false; // Not a loop check command
 }
 
+inline bool processLoggingCommands(auto& it, const auto& words, std::string& accumulated_input)
+{
+    const auto& word = *it;
+    if (word == "*LOGGING" || word == "*logging")
+    {
+        // get next word
+        ++it;
+        if (it != words.end())
+        {
+            const auto& nextWord = *it;
+            if (nextWord == "ON" || nextWord == "on")
+            {
+                // display loop checking on
+                std::cout << "logging ON" << std::endl;
+                jc.loggingON();
+            }
+            else if (nextWord == "OFF" || nextWord == "off")
+            {
+                // display loop checking off
+                std::cout << "logging OFF" << std::endl;
+                jc.loggingOFF();
+            }
+            else
+            {
+                std::cerr << "Error: Expected argument (on,off) after " << word << std::endl;
+            }
+            // Remove `command` and `nextWord` from accumulated_input
+            accumulated_input.erase(accumulated_input.find(word), word.length() + nextWord.length() + 2);
+        }
+        return true; // Processed loop check command
+    }
+    return false; // Not a loop check command
+}
+
+
+
 inline bool processDumpCommands(auto& it, const auto& words, std::string& accumulated_input)
 {
     const auto& word = *it;
@@ -327,6 +363,11 @@ inline void interactive_terminal()
             if (word == "QUIT" || word == "quit")
             {
                 break;
+            }
+
+            if (processLoggingCommands(it, words, accumulated_input))
+            {
+                continue;
             }
 
             if (processTraceCommands(it, words, accumulated_input))
