@@ -1,6 +1,6 @@
 ( start.f define some common words )
 
-  0.0000001 fconstant tolerance
+ 0.0000001 fconstant tolerance
 
 : f=  f-  fabs tolerance f< ;
 

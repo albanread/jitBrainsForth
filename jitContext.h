@@ -44,8 +44,6 @@ public:
             {
                 code.setLogger(&logger);
             }
-
-            if (logging) std::cout << "AsmJit context has been reset and reinitialized." << std::endl;
         }
     }
 
