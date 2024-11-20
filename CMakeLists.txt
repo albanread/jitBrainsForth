@@ -33,6 +33,7 @@ add_executable(jitBrainsForth
         Compiler.h
         CompilerUtility.h
         UtilitySDL.h
+        jitLabels.h
 )
 
 # Copy the start.f file after build
