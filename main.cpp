@@ -12,8 +12,6 @@ StringInterner& interner = StringInterner::getInstance();
 
 
 // start to test some code generation
-
-
 void add_words()
 {
     d.addConstant("1", JitGenerator::push1, JitGenerator::build_forth(JitGenerator::push1), nullptr, nullptr);
@@ -161,6 +159,15 @@ void add_words()
     d.addCompileOnlyImmediate("K", nullptr, nullptr, JitGenerator::genK, nullptr);
     d.addCompileOnlyImmediate("EXIT", nullptr, nullptr, JitGenerator::genExit, nullptr);
     d.addCompileOnlyImmediate("LEAVE", nullptr, nullptr, JitGenerator::genLeave, nullptr);
+
+    d.addCompileOnlyImmediate("CASE", nullptr, nullptr, JitGenerator::genCase, nullptr);
+    d.addCompileOnlyImmediate("OF", nullptr, nullptr, JitGenerator::genOf, nullptr);
+    d.addCompileOnlyImmediate("ENDOF", nullptr, nullptr, JitGenerator::genEndOf, nullptr);
+    d.addCompileOnlyImmediate("DEFAULT", nullptr, nullptr, JitGenerator::genDefault, nullptr);
+
+    d.addCompileOnlyImmediate("ENDCASE", nullptr, nullptr, JitGenerator::genEndCase, nullptr);
+
+
     d.addCompileOnlyImmediate("{", nullptr, nullptr, JitGenerator::gen_leftBrace, nullptr);
 
     d.addWord("to", nullptr, nullptr, JitGenerator::genTO, JitGenerator::execTO);

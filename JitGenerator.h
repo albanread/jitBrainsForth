@@ -22,7 +22,8 @@ enum LoopType
     IF_THEN_ELSE,
     FUNCTION_ENTRY_EXIT,
     DO_LOOP,
-    BEGIN_AGAIN_REPEAT_UNTIL
+    BEGIN_AGAIN_REPEAT_UNTIL,
+    CASE_CONTROL
 };
 
 struct IfThenElseLabel
@@ -35,6 +36,20 @@ struct IfThenElseLabel
     bool hasElse;
     bool hasExit;
     bool hasLeave;
+};
+
+
+struct CaseLabel
+{
+    asmjit::Label caseLabel;
+    asmjit::Label nextLabel;
+    bool hasEndOf;
+
+    void print() const
+    {
+        std::cout << "Case Label: " << caseLabel.id() << "\n";
+        std::cout << "Next Label: " << nextLabel.id() << "\n";
+    }
 };
 
 struct FunctionEntryExitLabel
@@ -71,7 +86,8 @@ struct BeginAgainRepeatUntilLabel
     }
 };
 
-using LabelVariant = std::variant<IfThenElseLabel, FunctionEntryExitLabel, DoLoopLabel, BeginAgainRepeatUntilLabel>;
+using LabelVariant = std::variant<IfThenElseLabel, FunctionEntryExitLabel, DoLoopLabel, BeginAgainRepeatUntilLabel,
+                                  CaseLabel>;
 
 struct LoopLabel
 {
@@ -913,7 +929,7 @@ public:
             else if (word_type == ForthWordType::STRING) // variable
             {
                 // update a string variable from the string stack.
-                auto variable_address =d.get_data_ptr();
+                auto variable_address = d.get_data_ptr();
                 size_t string_address = sm.popSS();
                 strIntern.incrementRef(string_address);
                 fword->data = string_address; // update the data pointer to point to the string
@@ -1040,48 +1056,51 @@ public:
     }
 
 
-static void genImmediatefConstant()
-{
-    const auto& words = *jc.words;
-    size_t pos = jc.pos_next_word + 1;
-
-    std::string word = words[pos];
-    jc.word = word;
-
-    // Pop the initial value from the data stack
-    double initialValue;
-    try {
-        initialValue = sm.popDSDouble();
-    } catch (const std::exception& e) {
-        throw std::runtime_error(std::string("Failed to pop double from stack: ") + e.what());
-    }
-
-    jc.resetContext();
-    if (!jc.assembler)
+    static void genImmediatefConstant()
     {
-        throw std::runtime_error("entryFunction: Assembler not initialized");
+        const auto& words = *jc.words;
+        size_t pos = jc.pos_next_word + 1;
+
+        std::string word = words[pos];
+        jc.word = word;
+
+        // Pop the initial value from the data stack
+        double initialValue;
+        try
+        {
+            initialValue = sm.popDSDouble();
+        }
+        catch (const std::exception& e)
+        {
+            throw std::runtime_error(std::string("Failed to pop double from stack: ") + e.what());
+        }
+
+        jc.resetContext();
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("entryFunction: Assembler not initialized");
+        }
+        auto& a = *jc.assembler;
+        commentWithWord(" ; ----- immediate value: ", word);
+
+        // Add the word to the dictionary as a value
+        d.addWord(word.c_str(), nullptr, nullptr, nullptr, nullptr);
+
+
+        // Set the initial value explicitly
+        d.setDataDouble(initialValue);
+
+        auto dataAddress = d.get_data_ptr();
+        d.setType(ForthWordType::CONSTANTFLOAT); // value type
+
+        a.comment(" ; ----- fetch value");
+        loadDS(dataAddress);
+        a.ret();
+
+        ForthFunction compiledFunc = endGeneration();
+        d.setCompiledFunction(compiledFunc);
+        jc.pos_last_word = pos;
     }
-    auto& a = *jc.assembler;
-    commentWithWord(" ; ----- immediate value: ", word);
-
-    // Add the word to the dictionary as a value
-    d.addWord(word.c_str(), nullptr, nullptr, nullptr, nullptr);
-
-
-    // Set the initial value explicitly
-    d.setDataDouble(initialValue);
-
-    auto dataAddress = d.get_data_ptr();
-    d.setType(ForthWordType::CONSTANTFLOAT); // value type
-
-    a.comment(" ; ----- fetch value");
-    loadDS(dataAddress);
-    a.ret();
-
-    ForthFunction compiledFunc = endGeneration();
-    d.setCompiledFunction(compiledFunc);
-    jc.pos_last_word = pos;
-}
 
 
     // immediate value, runs when value is called.
@@ -2691,6 +2710,198 @@ static void genImmediatefConstant()
         else
         {
             throw std::runtime_error("genThen: No matching IF_THEN_ELSE structure on the stack");
+        }
+    }
+
+    //
+    //  Start
+    //          |
+    //         CASE
+    //          |
+    //          v
+    //     - Compare value with 1 -----
+    //    |                               |
+    //    v                               v
+    //   OF 1            -----> Jump to next OF (if false)
+    //    |  (if true)
+    //    v
+    //  Execute block
+    //    |
+    //   ENDOF ------------------> End of CASE
+    //    |                           (jump here if true)
+    //    v
+    //     - Compare value with 2 -----
+    //    |                               |
+    //    v                               v
+    //   OF 2            -----> Jump to next OF (if false)
+    //    |  (if true)
+    //    v
+    //  Execute block
+    //    |
+    //   ENDOF ------------------> End of CASE
+    //    |                           (jump here if true)
+    //    v
+    //     - Compare value with 3 -----
+    //    |                               |
+    //    v                               v
+    //   OF 3            -----> Jump to default (if false)
+    //    |  (if true)
+    //    v
+    //  Execute block
+    //    |
+    //   ENDOF ------------------> End of CASE
+    //    |                           (jump here if true)
+    //    v
+    //   DEFAULT case block (no comparison)
+    //    |
+    // ENDCASE (marks the end of CASE structure, all jumps converge here)
+    //    |
+    //    v
+    //   End
+    //
+
+
+    static void genCase()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genCase: Assembler not initialized");
+        }
+        auto& a = *jc.assembler;
+
+        // Create new CaseLabel structure
+        CaseLabel branches;
+        branches.caseLabel = a.newLabel();
+        branches.nextLabel = a.newLabel();
+        branches.hasEndOf = false;
+
+        // Push the new CaseLabel structure onto the loopStack
+        loopStack.push({CASE_CONTROL, branches});
+
+        // Pop the argument from the data stack and push to the return stack for later comparison in `OF`
+        asmjit::x86::Gp value = asmjit::x86::rax;
+        popDS(value);
+        pushRS(value);
+
+        a.comment(" ; ---- genCase");
+    }
+
+    static void genOf()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genOf: Assembler not initialized");
+        }
+        auto& a = *jc.assembler;
+
+        if (!loopStack.empty() && loopStack.top().type == CASE_CONTROL)
+        {
+            auto branches = std::get<CaseLabel>(loopStack.top().label);
+
+            a.comment(" ; ---- genOf");
+
+            asmjit::x86::Gp value = asmjit::x86::rax;
+            // Pop the value from the return stack for comparison
+            popRS(value);
+
+            // Get the top of the stack for comparison
+            asmjit::x86::Gp tos = asmjit::x86::rbx;
+            popDS(tos);
+
+            // Compare the values and conditionally jump to the next `OF` or default action
+            a.cmp(tos, value);
+            branches.nextLabel = a.newLabel();
+            a.jnz(branches.nextLabel); // Jump to the label of the next `OF` if not equal
+
+            loopStack.pop();
+            loopStack.push({CASE_CONTROL, branches});
+        }
+        else
+        {
+            throw std::runtime_error("genOf: No matching CASE_CONTROL structure on the stack");
+        }
+    }
+
+    static void genEndOf()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genEndOf: Assembler not initialized");
+        }
+        auto& a = *jc.assembler;
+
+        if (!loopStack.empty() && loopStack.top().type == CASE_CONTROL)
+        {
+            auto branches = std::get<CaseLabel>(loopStack.top().label);
+
+            // Jump to the end of the case block (final label)
+            a.jmp(branches.caseLabel);
+
+            // Bind the next label for the next `OF` clause
+            a.bind(branches.nextLabel);
+
+            // Prepare the next label for subsequent `OF` clauses
+            branches.nextLabel = a.newLabel();
+
+            loopStack.pop();
+            loopStack.push({CASE_CONTROL, branches});
+        }
+        else
+        {
+            throw std::runtime_error("genEndOf: No matching CASE_CONTROL structure on the stack");
+        }
+    }
+
+    static void genDefault()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genDefault: Assembler not initialized");
+        }
+        auto& a = *jc.assembler;
+
+        if (!loopStack.empty() && loopStack.top().type == CASE_CONTROL)
+        {
+            auto branches = std::get<CaseLabel>(loopStack.top().label);
+
+            a.comment(" ; ---- genDefault");
+
+            // Bind to the next label as the default case
+            a.bind(branches.nextLabel);
+
+            // The default action doesn't require setting a new `nextLabel`
+            loopStack.pop();
+            loopStack.push({CASE_CONTROL, branches});
+        }
+        else
+        {
+            throw std::runtime_error("genDefault: No matching CASE_CONTROL structure on the stack");
+        }
+    }
+
+    static void genEndCase()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genEndCase: Assembler not initialized");
+        }
+        auto& a = *jc.assembler;
+
+        if (!loopStack.empty() && loopStack.top().type == CASE_CONTROL)
+        {
+            auto branches = std::get<CaseLabel>(loopStack.top().label);
+
+            a.comment(" ; ---- genEndCase");
+
+            // Final bind at the exit point of the case block
+            a.bind(branches.caseLabel);
+
+            // Clean up the loop stack
+            loopStack.pop();
+        }
+        else
+        {
+            throw std::runtime_error("genEndCase: No matching CASE_CONTROL structure on the stack");
         }
     }
 

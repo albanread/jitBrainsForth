@@ -4,8 +4,8 @@
 #include <iostream>
 #include <unordered_map>
 #include "JitGenerator.h"
-#include <set>
 #include <string>
+#include <set>
 
 // Static method to get the singleton instance
 ForthDictionary& ForthDictionary::getInstance(size_t size)
