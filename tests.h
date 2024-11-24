@@ -531,6 +531,38 @@ void run_basic_tests()
             40);
 
 
+
+    testCompileAndRun("nestedcase",
+        R"(
+                      CASE
+                        1 OF
+                          10
+                        ENDOF
+                        2 OF
+                         CASE
+                            1 OF
+                              10
+                            ENDOF
+                            2 OF
+                              200
+                            ENDOF
+                            3 OF
+                              30
+                            ENDOF
+                            DEFAULT
+                              40
+                         ENDCASE
+                        ENDOF
+                        3 OF
+                          30
+                        ENDOF
+                        DEFAULT
+                          40
+                      ENDCASE )",
+        " 2 2 nestedcase",
+        200);
+
+
     ftest_against_ds("3.14159", 3.14159); // Single float value
     ftest_against_ds("2.0 2.0 f+", 4.0); // Addition resulting in a float
     ftest_against_ds("5.0 1.0 f-", 4.0); // Subtraction resulting in a float
