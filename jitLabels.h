@@ -24,16 +24,26 @@ struct IfThenElseLabel
 };
 
 
+
+// case of endof endcase
+// case takes an argument, of takes an argument and tests if the are equal.
+//  when of sees the argument is not equal it jumps to its endof statement.
+//  each of has its own endof label.
+//
+
+// Labels for CASE control structure
 struct CaseLabel
 {
-    asmjit::Label caseLabel;
-    asmjit::Label nextLabel;
-    bool hasEndOf;
+    asmjit::Label end_case_label;
+    std::vector<asmjit::Label> endOfLabels;
+    int ofCount = 0;
 
     void print() const
     {
-        std::cout << "Case Label: " << caseLabel.id() << "\n";
-        std::cout << "Next Label: " << nextLabel.id() << "\n";
+        std::cout << "Case Label: " << end_case_label.id() << "\n";
+        for (const auto& label : endOfLabels) {
+            std::cout << "EndOf Label: " << label.id() << "\n";
+        }
     }
 };
 

@@ -88,14 +88,14 @@ inline void ftest_against_ds(const std::string& words, const float expected_top)
         {
             failed_tests++; // Correct the logical check
             std::cout << "!!!! ---- Failed test: " << words << " Expected: " << expected_top
-                      << " but got: " << result << " <<<<< ---- Failed test !!!" << std::endl;
+                << " but got: " << result << " <<<<< ---- Failed test !!!" << std::endl;
         }
     }
     catch (const std::runtime_error& e)
     {
         failed_tests++;
         std::cout << "!!!! ---- Exception occurred: " << e.what() << " for test: " << words
-                  << " <<<<< ---- Failed test !!!" << std::endl;
+            << " <<<<< ---- Failed test !!!" << std::endl;
     }
 }
 
@@ -452,6 +452,84 @@ void run_basic_tests()
 
     test_against_ds(R"(s" 1 2 3 4 5 6 7 8 " s" 6 " strpos)", 10);
 
+    testCompileAndRun("testcase",
+                      R"(
+                      CASE
+                        1 OF
+                          10
+                        ENDOF
+                        2 OF
+                          20
+                        ENDOF
+                        3 OF
+                          30
+                        ENDOF
+                        DEFAULT
+                          40
+                      ENDCASE ;)",
+                      " 3 testcase",
+                      30);
+
+
+
+
+    testCompileAndRun("testcase",
+                    R"(
+                      CASE
+                        1 OF
+                          10
+                        ENDOF
+                        2 OF
+                          20
+                        ENDOF
+                        3 OF
+                          30
+                        ENDOF
+                        DEFAULT
+                          40
+                      ENDCASE ;)",
+                    " 2 testcase",
+                    20);
+
+
+    testCompileAndRun("testcase",
+                R"(
+                      CASE
+                        1 OF
+                          10
+                        ENDOF
+                        2 OF
+                          20
+                        ENDOF
+                        3 OF
+                          30
+                        ENDOF
+                        DEFAULT
+                          40
+                      ENDCASE ;)",
+                " 3 testcase",
+                30);
+
+
+
+    testCompileAndRun("testcase",
+            R"(
+                      CASE
+                        1 OF
+                          10
+                        ENDOF
+                        2 OF
+                          20
+                        ENDOF
+                        3 OF
+                          30
+                        ENDOF
+                        DEFAULT
+                          40
+                      ENDCASE ;)",
+            " 99 testcase",
+            40);
+
 
     ftest_against_ds("3.14159", 3.14159); // Single float value
     ftest_against_ds("2.0 2.0 f+", 4.0); // Addition resulting in a float
@@ -509,22 +587,22 @@ void run_basic_tests()
 
     // f<
     test_against_ds("1.0 2.0 f<", -1); // 1.0 < 2.0 is true
-    test_against_ds("2.0 1.0 f<", 0);  // 2.0 < 1.0 is false
-    test_against_ds("1.0 1.0 f<", 0);  // 1.0 < 1.0 is false
+    test_against_ds("2.0 1.0 f<", 0); // 2.0 < 1.0 is false
+    test_against_ds("1.0 1.0 f<", 0); // 1.0 < 1.0 is false
 
     // f>
     test_against_ds("2.0 1.0 f>", -1); // 2.0 > 1.0 is true
-    test_against_ds("1.0 2.0 f>", 0);  // 1.0 > 2.0 is false
-    test_against_ds("1.0 1.0 f>", 0);  // 1.0 > 1.0 is false
+    test_against_ds("1.0 2.0 f>", 0); // 1.0 > 2.0 is false
+    test_against_ds("1.0 1.0 f>", 0); // 1.0 > 1.0 is false
 
     // f=
     test_against_ds("1.0 1.0 f=", -1); // 1.0 = 1.0 is true
-    test_against_ds("1.0 2.0 f=", 0);  // 1.0 = 2.0 is false
+    test_against_ds("1.0 2.0 f=", 0); // 1.0 = 2.0 is false
 
     // f<>
     test_against_ds("1.0 2.0 f<>", -1); // 1.0 <> 2.0 is true
     test_against_ds("2.0 1.0 f<>", -1); // 2.0 <> 1.0 is true
-    test_against_ds("1.0 1.0 f<>", 0);  // 1.0 <> 1.0 is false
+    test_against_ds("1.0 1.0 f<>", 0); // 1.0 <> 1.0 is false
 
 
     // Print summary after running tests

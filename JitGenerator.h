@@ -169,11 +169,11 @@ public:
 
         auto& a = *jc.assembler;
         // Load the address into rax
+        a.comment(" ; ----- loadDS");
+        a.comment(" ; ----- Dereference the address provided to get the value");
         a.mov(asmjit::x86::rax, dataAddress);
-
         // Dereference the address to get the value and store it into rax
         a.mov(asmjit::x86::rax, asmjit::x86::ptr(asmjit::x86::rax));
-
         // Push the value onto the data stack
         pushDS(asmjit::x86::rax);
     }
@@ -187,6 +187,9 @@ public:
         }
 
         auto& a = *jc.assembler;
+        a.comment(" ; ----- loadDS");
+        a.comment(" ; ----- Pop the address get the value, push it");
+
         // Load the address into rax
         popDS(asmjit::x86::rax);
         // Dereference the address to get the value and store it into rax
@@ -205,6 +208,9 @@ public:
         }
 
         auto& a = *jc.assembler;
+        a.comment(" ; ----- storeDS");
+        a.comment(" ; ----- Pop the value store value at address provided");
+
         // Pop the value from the data stack into rax
         popDS(asmjit::x86::rax);
 
@@ -224,6 +230,9 @@ public:
         }
 
         auto& a = *jc.assembler;
+        a.comment(" ; ----- storeFromDS");
+        a.comment(" ; ----- Pop address, pop value store value at address ");
+
         // Pop the value from the data stack into rax
         popDS(asmjit::x86::rcx); // address
         popDS(asmjit::x86::rax); // data
@@ -291,7 +300,9 @@ public:
 
         auto& a = *jc.assembler;
 
-        a.comment("; Increment string reference");
+        a.comment("; pushSSAndBumpRef (arg provided)");
+        a.comment("; Decrement string reference");
+
         a.sub(asmjit::x86::rsp, 40);
         a.call(prim_dec_ss);
         a.add(asmjit::x86::rsp, 40);
@@ -318,7 +329,7 @@ public:
         auto& a = *jc.assembler;
         a.comment(" ; ----- popSS");
         a.comment(" ; fetch value from the string stack (r12)");
-        a.comment(" ; update string reference count");
+        //a.comment(" ; update string reference count");
         // a.sub(asmjit::x86::rsp, 40);
         // a.call(prim_dec_ss);
         // a.add(asmjit::x86::rsp, 40);
@@ -613,11 +624,12 @@ public:
             ++pos;
         }
 
-        /*
-        printf("arguments_to_local_count: %d\n", arguments_to_local_count);
-        printf("locals_count: %d\n", locals_count);
-        printf("returned_arguments_count: %d\n", returned_arguments_count);
-        */
+        if (logging)
+        {
+            printf("arguments_to_local_count: %d\n", arguments_to_local_count);
+            printf("locals_count: %d\n", locals_count);
+            printf("returned_arguments_count: %d\n", returned_arguments_count);
+        }
 
 
         jc.pos_last_word = pos;
@@ -2605,7 +2617,8 @@ public:
         }
     }
 
-    // case of endof endcase - not implemented correctly yet.
+    // implement the case statement
+    // case of endof endcase
     //
     //  Start
     //          |
@@ -2653,6 +2666,7 @@ public:
     //   End
     //
 
+    // case of endof endcase Implementation
 
     static void genCase()
     {
@@ -2662,16 +2676,12 @@ public:
         }
         auto& a = *jc.assembler;
 
-        // Create new CaseLabel structure
         CaseLabel branches;
-        branches.caseLabel = a.newLabel();
-        branches.nextLabel = a.newLabel();
-        branches.hasEndOf = false;
+        branches.end_case_label = a.newLabel();
 
-        // Push the new CaseLabel structure onto the loopStack
-        loopStack.push({CASE_CONTROL, branches});
+        branches.ofCount = -1;
+        loopStack.push({LoopType::CASE_CONTROL, branches});
 
-        // Pop the argument from the data stack and push to the return stack for later comparison in `OF`
         asmjit::x86::Gp value = asmjit::x86::rax;
         popDS(value);
         pushRS(value);
@@ -2687,27 +2697,31 @@ public:
         }
         auto& a = *jc.assembler;
 
-        if (!loopStack.empty() && loopStack.top().type == CASE_CONTROL)
+        if (!loopStack.empty() && loopStack.top().type == LoopType::CASE_CONTROL)
         {
-            auto branches = std::get<CaseLabel>(loopStack.top().label);
+            auto& branches = std::get<CaseLabel>(loopStack.top().label);
 
             a.comment(" ; ---- genOf");
 
-            asmjit::x86::Gp value = asmjit::x86::rax;
-            // Pop the value from the return stack for comparison
-            popRS(value);
+            // Create a new endOfLabel for this specific `OF`
+            asmjit::Label endOfLabel = a.newLabel();
+            branches.ofCount = branches.ofCount + 1; // work on next branches label
+            branches.endOfLabels.push_back(endOfLabel);
+            // Save modifications back to the stack
+            loopStack.pop();
+            loopStack.push({LoopType::CASE_CONTROL, branches});
 
-            // Get the top of the stack for comparison
+            a.comment(" ; compare and jump to endof if false");
+            asmjit::x86::Gp value = asmjit::x86::rax;
+            popRS(value);
+            pushRS(value);
+
             asmjit::x86::Gp tos = asmjit::x86::rbx;
             popDS(tos);
 
-            // Compare the values and conditionally jump to the next `OF` or default action
             a.cmp(tos, value);
-            branches.nextLabel = a.newLabel();
-            a.jnz(branches.nextLabel); // Jump to the label of the next `OF` if not equal
+            a.jnz( branches.endOfLabels.at(branches.ofCount)); // Jump to OUR endOfLabel if comparison fails
 
-            loopStack.pop();
-            loopStack.push({CASE_CONTROL, branches});
         }
         else
         {
@@ -2722,22 +2736,23 @@ public:
             throw std::runtime_error("genEndOf: Assembler not initialized");
         }
         auto& a = *jc.assembler;
+        a.comment(" ; ---- genEndOf");
 
-        if (!loopStack.empty() && loopStack.top().type == CASE_CONTROL)
+        if (!loopStack.empty() && loopStack.top().type == LoopType::CASE_CONTROL)
         {
             auto branches = std::get<CaseLabel>(loopStack.top().label);
+            a.comment("; jump to endcase");
+            // Jump to the end of the case block (final label) after completing the block
+            a.jmp(branches.end_case_label);
 
-            // Jump to the end of the case block (final label)
-            a.jmp(branches.caseLabel);
-
-            // Bind the next label for the next `OF` clause
-            a.bind(branches.nextLabel);
-
-            // Prepare the next label for subsequent `OF` clauses
-            branches.nextLabel = a.newLabel();
-
-            loopStack.pop();
-            loopStack.push({CASE_CONTROL, branches});
+            // after the jump to endcase.
+            // Bind the endOfLabel for this OF block
+            if (!branches.endOfLabels.empty())
+            {
+                a.comment("; -- Label for endof ");
+                a.bind(branches.endOfLabels.at(branches.ofCount));
+                printf("bind success, of label %d", branches.ofCount);
+            }
         }
         else
         {
@@ -2753,18 +2768,17 @@ public:
         }
         auto& a = *jc.assembler;
 
-        if (!loopStack.empty() && loopStack.top().type == CASE_CONTROL)
+        if (!loopStack.empty() && loopStack.top().type == LoopType::CASE_CONTROL)
         {
             auto branches = std::get<CaseLabel>(loopStack.top().label);
 
             a.comment(" ; ---- genDefault");
 
-            // Bind to the next label as the default case
-            a.bind(branches.nextLabel);
 
-            // The default action doesn't require setting a new `nextLabel`
+
+            // Save modifications back to the stack
             loopStack.pop();
-            loopStack.push({CASE_CONTROL, branches});
+            loopStack.push({LoopType::CASE_CONTROL, branches});
         }
         else
         {
@@ -2780,23 +2794,30 @@ public:
         }
         auto& a = *jc.assembler;
 
-        if (!loopStack.empty() && loopStack.top().type == CASE_CONTROL)
+        if (!loopStack.empty() && loopStack.top().type == LoopType::CASE_CONTROL)
         {
             auto branches = std::get<CaseLabel>(loopStack.top().label);
 
             a.comment(" ; ---- genEndCase");
 
             // Final bind at the exit point of the case block
-            a.bind(branches.caseLabel);
+            a.bind(branches.end_case_label);
 
-            // Clean up the loop stack
+            // Clear the loop stack
             loopStack.pop();
+            // drop case comparison from return stack.
+            a.comment(" ; ----  drop case comparison from return stack.");
+            asmjit::x86::Gp value = asmjit::x86::rax;
+            popRS(value);
         }
         else
         {
             throw std::runtime_error("genEndCase: No matching CASE_CONTROL structure on the stack");
         }
     }
+
+
+    // end of case statements
 
 
     static void genSub()
