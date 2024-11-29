@@ -7,6 +7,9 @@
 #include <string>
 #include <set>
 
+
+
+
 // Static method to get the singleton instance
 ForthDictionary& ForthDictionary::getInstance(size_t size)
 {

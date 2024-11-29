@@ -70,6 +70,8 @@ void add_words()
     d.addWord("-", JitGenerator::genSub, JitGenerator::build_forth(JitGenerator::genSub), nullptr, nullptr);
     d.addWord("*", JitGenerator::genMul, JitGenerator::build_forth(JitGenerator::genMul), nullptr, nullptr);
     d.addWord("/", JitGenerator::genDiv, JitGenerator::build_forth(JitGenerator::genDiv), nullptr, nullptr);
+    d.addWord("sqrt", JitGenerator::genIntSqrt, JitGenerator::build_forth(JitGenerator::genIntSqrt), nullptr, nullptr);
+    d.addWord("gcd", JitGenerator::genGcd, JitGenerator::build_forth(JitGenerator::genGcd), nullptr, nullptr);
 
     d.addWord("f+", JitGenerator::genFPlus, JitGenerator::build_forth(JitGenerator::genFPlus), nullptr, nullptr);
     d.addWord("f-", JitGenerator::genFSub, JitGenerator::build_forth(JitGenerator::genFSub), nullptr, nullptr);

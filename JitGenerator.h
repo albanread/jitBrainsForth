@@ -2720,8 +2720,7 @@ public:
             popDS(tos);
 
             a.cmp(tos, value);
-            a.jnz( branches.endOfLabels.at(branches.ofCount)); // Jump to OUR endOfLabel if comparison fails
-
+            a.jnz(branches.endOfLabels.at(branches.ofCount)); // Jump to OUR endOfLabel if comparison fails
         }
         else
         {
@@ -2773,7 +2772,6 @@ public:
             auto branches = std::get<CaseLabel>(loopStack.top().label);
 
             a.comment(" ; ---- genDefault");
-
 
 
             // Save modifications back to the stack
@@ -2964,6 +2962,7 @@ public:
         std::cerr << "Division by zero error in */MOD word." << std::endl;
         throw std::runtime_error("Division by zero error in */MOD word.");
     }
+
 
     //
     // static void genStarSlashMod()
@@ -3206,6 +3205,113 @@ public:
         a.bind(out);
         // Store the result back on the stack
         a.mov(asmjit::x86::qword_ptr(ds), result);
+    }
+
+    static void genIntSqrt()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genSqrt: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- genSqrt");
+
+        // Declaring labels for control flow
+        asmjit::Label startLoop = a.newLabel();
+        asmjit::Label loopCheck = a.newLabel();
+        asmjit::Label continueLabel = a.newLabel();
+        asmjit::Label done = a.newLabel();
+
+        // Using registers for q, r, t, and tracking x
+        asmjit::x86::Gp ds = asmjit::x86::r15;
+        asmjit::x86::Gp x = asmjit::x86::rax; // Initial input
+        asmjit::x86::Gp q = asmjit::x86::rbx; // Iterator q
+        asmjit::x86::Gp r = asmjit::x86::rcx; // Result accumulation
+        asmjit::x86::Gp t = asmjit::x86::rdx; // Temporary storage for calculations
+
+        a.comment(" ; Load x from stack and initialize q and r");
+        a.mov(x, asmjit::x86::qword_ptr(ds)); // Load x from the stack
+        a.mov(q, 1); // Initialize q to 1
+        a.xor_(r, r); // Clear r
+
+        a.comment(" ; Move q to maximum valid shift");
+        a.bind(startLoop);
+        a.cmp(q, x); // Compare q to x
+        a.jg(loopCheck); // Jump if q is greater than x
+        a.shl(q, 2); // Shift q left by 2 bits
+        a.jmp(startLoop); // Repeat loop
+
+        a.bind(loopCheck);
+        a.cmp(q, 1); // If q <= 1, break out of loop
+        a.jle(done);
+
+        a.comment(" ; Perform Newton-like iteration");
+        a.shr(q, 2); // Reduce q by shifting right twice per iteration
+
+        a.mov(t, x); // Calculate t = x - r - q
+        a.sub(t, r);
+        a.sub(t, q);
+        a.shr(r, 1); // Shift r to the right
+        a.cmp(t, 0); // Check whether t >= 0
+        a.jl(continueLabel); // If t < 0, skip add step
+
+        a.mov(x, t); // New x value after successful subtraction
+        a.add(r, q); // Accumulate the result in r
+
+        a.bind(continueLabel);
+        a.test(q, q); // Check for loop end condition
+        a.jnz(loopCheck); // Repeat if more work to do
+
+        a.bind(done);
+        a.comment(" ; Store final result in r back to stack");
+        a.mov(asmjit::x86::qword_ptr(ds), r); // Store result r back on stack
+    }
+
+    static void genGcd()
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("genGcdEuclidean: Assembler not initialized");
+        }
+
+        auto& a = *jc.assembler;
+        a.comment(" ; ----- genGcdEuclidean");
+
+        // Declare labels for control flow
+        asmjit::Label loopStart = a.newLabel();
+        asmjit::Label doneLabel = a.newLabel();
+
+        asmjit::x86::Gp ds = asmjit::x86::r15; // Data stack
+        asmjit::x86::Gp aValue = asmjit::x86::rax;
+        asmjit::x86::Gp bValue = asmjit::x86::rbx;
+        asmjit::x86::Gp remainder = asmjit::x86::rdx;
+
+        a.comment(" ; Load initial values from stack into registers");
+        a.mov(aValue, asmjit::x86::qword_ptr(ds));
+        a.add(ds, 8);
+        a.mov(bValue, asmjit::x86::qword_ptr(ds));
+
+        a.comment(" ; Begin Euclidean algorithm loop");
+        a.bind(loopStart);
+        a.test(bValue, bValue);
+        a.jz(doneLabel);
+
+        a.xor_(remainder, remainder); // Clear remainder before division
+        a.div(bValue);
+        a.mov(remainder, asmjit::x86::rdx); // rdx contains the remainder
+
+        a.mov(aValue, bValue); // Swap aValue and bValue for the next iteration
+        a.mov(bValue, remainder); // bValue gets the remainder
+
+        a.jmp(loopStart); // Repeat the loop
+
+        a.bind(doneLabel);
+        a.comment(" ; Store the GCD result back on stack");
+        a.sub(ds, 8);
+        a.mov(asmjit::x86::qword_ptr(ds), aValue);
+
+        a.comment(" ; End of Euclidean GCD implementation");
     }
 
     // comparisons
