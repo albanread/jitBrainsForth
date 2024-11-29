@@ -466,7 +466,7 @@ void run_basic_tests()
                         ENDOF
                         DEFAULT
                           40
-                      ENDCASE ;)",
+                      ENDCASE )",
                       " 3 testcase",
                       30);
 
@@ -487,7 +487,7 @@ void run_basic_tests()
                         ENDOF
                         DEFAULT
                           40
-                      ENDCASE ;)",
+                      ENDCASE )",
                     " 2 testcase",
                     20);
 
@@ -506,7 +506,7 @@ void run_basic_tests()
                         ENDOF
                         DEFAULT
                           40
-                      ENDCASE ;)",
+                      ENDCASE )",
                 " 3 testcase",
                 30);
 
@@ -526,9 +526,41 @@ void run_basic_tests()
                         ENDOF
                         DEFAULT
                           40
-                      ENDCASE ;)",
+                      ENDCASE )",
             " 99 testcase",
             40);
+
+
+
+    testCompileAndRun("nestedcase",
+        R"(
+                      CASE
+                        1 OF
+                          10
+                        ENDOF
+                        2 OF
+                         CASE
+                            1 OF
+                              10
+                            ENDOF
+                            2 OF
+                              200
+                            ENDOF
+                            3 OF
+                              30
+                            ENDOF
+                            DEFAULT
+                              40
+                         ENDCASE
+                        ENDOF
+                        3 OF
+                          30
+                        ENDOF
+                        DEFAULT
+                          40
+                      ENDCASE )",
+        " 2 2 nestedcase",
+        200);
 
 
     ftest_against_ds("3.14159", 3.14159); // Single float value
