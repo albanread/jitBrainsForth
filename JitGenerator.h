@@ -762,6 +762,48 @@ public:
                 // Store the value into the address
                 a.mov(asmjit::x86::qword_ptr(asmjit::x86::rax), asmjit::x86::rcx);
             }
+
+            else if (word_type == ForthWordType::ARRAY) // ARRAY
+            {
+                commentWithWord("; TO ----- updating ARRAY: ", w);
+                const auto limit = fword->getUint64();
+                const auto normal_continue = a.newLabel();
+                const auto throw_error = a.newLabel();
+
+                printf("array limit = %lld\n", limit);
+
+                // Pop index and value from the data stack
+                popDS(asmjit::x86::rdx); // index
+                popDS(asmjit::x86::rcx); // value
+
+                // Check if index is in bounds
+                a.cmp(asmjit::x86::rdx, limit);
+                a.jae(throw_error);
+
+                // Calculate address for the array element
+                const auto base_address = reinterpret_cast<uint64_t>(&fword->data);
+                a.mov(asmjit::x86::rax, base_address);
+                a.add(asmjit::x86::rax, 8);
+                a.lea(asmjit::x86::rax, asmjit::x86::qword_ptr(asmjit::x86::rax, asmjit::x86::rdx, 3));
+                // Store the value
+                a.mov(asmjit::x86::qword_ptr(asmjit::x86::rax), asmjit::x86::rcx);
+                a.jmp(normal_continue);
+
+                // Label for out-of-bounds jump
+                a.comment("; throw error");
+                a.bind(throw_error);
+
+                a.sub(asmjit::x86::rsp, 40);
+                a.call(throw_array_index_error);
+                a.add(asmjit::x86::rsp, 40);
+
+                a.comment("; continue as normal");
+                a.bind(normal_continue);
+
+                jc.pos_last_word = pos;
+            }
+
+
             else if (word_type == ForthWordType::STRING) // variable
             {
                 // Get the address of the variable's data
@@ -834,6 +876,7 @@ public:
             else if (word_type == ForthWordType::ARRAY ) // ARRAY
             {
                 // value index TO array
+                // check index in range and if so set value, else throw error.
 
                 const auto limit = fword->getUint64();
                 auto index =  sm.popDS();
