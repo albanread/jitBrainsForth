@@ -32,4 +32,4 @@
 : rfact  DUP 2 < IF DROP 1 EXIT THEN  DUP 1- RECURSE * ;
 
 
-s" loaded start.f " sprint cr
+s" loaded start.f " s. cr

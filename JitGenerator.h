@@ -731,7 +731,7 @@ public:
         {
             auto word_type = fword->type;
             if (logging) printf("word_type: %d\n", word_type);
-            if (word_type == ForthWordType::VALUE) // value
+            if (word_type == ForthWordType::VALUE || word_type == ForthWordType::FLOATVALUE) // value
             {
                 auto data_address = d.get_data_ptr();
                 if (logging) printf("data_address: %p\n", data_address);
@@ -790,6 +790,7 @@ public:
     }
 
 
+
     // The TO word safely updates the container word
     // in interpret mode only.
     static void execTO()
@@ -806,7 +807,7 @@ public:
         if (fword)
         {
             auto word_type = fword->type;
-            if (word_type == ForthWordType::VALUE) // value
+            if (word_type == ForthWordType::VALUE || word_type == ForthWordType::FLOATVALUE) // value
             {
                 auto data_address = d.get_data_ptr();
 
@@ -821,12 +822,31 @@ public:
                 commentWithWord("; TO ----- can not update constant: ", w);
                 throw std::runtime_error("TO can not update constant: " + w);
             }
-            else if (word_type == ForthWordType::VARIABLE) // variable
+            else if (word_type == ForthWordType::VARIABLE ) // variable
             {
                 // Load the address of the data (double indirect access)
                 auto variable_address = reinterpret_cast<uint64_t>(&fword->data);
                 // Pop the value from the data stack
                 auto value = sm.popDS();
+                // Store the value into the address the variable points to
+                *reinterpret_cast<int64_t*>(variable_address) = value;
+            }
+            else if (word_type == ForthWordType::ARRAY ) // ARRAY
+            {
+                // value index TO array
+
+                const auto limit = fword->getUint64();
+                auto index =  sm.popDS();
+                printf("index = %llu", index);
+                if (index >= limit)
+                {
+                    throw std::runtime_error("Index out of bounds for array: " + w);
+                }
+                auto variable_address = reinterpret_cast<uint64_t>(&fword->data);
+                variable_address += 8 + (index*8);
+
+                // Pop the value from the data stack
+                const auto value = sm.popDS();
                 // Store the value into the address the variable points to
                 *reinterpret_cast<int64_t*>(variable_address) = value;
             }
@@ -887,6 +907,75 @@ public:
         jc.pos_last_word = pos;
     }
 
+    // 100 ARRAY test
+    // create a value in the dictionary where the value is the array size
+    // followed by the allotted data for the array.
+    // at run time array returns indexed item
+    // e.g 10 test returns value at index 10 of array test
+
+    // check array index error
+    static void throw_array_index_error()
+    {
+        throw std::runtime_error("Array index out of range.");
+    }
+
+    static void genImmediateArray()
+    {
+        const auto& words = *jc.words;
+        size_t pos = jc.pos_next_word + 1;
+        std::string word = words[pos];
+        jc.word = word;
+
+        // Pop the array size from the data stack
+        auto arraySize = sm.popDS();
+        //printf("initialValue: %llu\n", initialValue);
+        jc.resetContext();
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("entryFunction: Assembler not initialized");
+        }
+        auto& a = *jc.assembler;
+        commentWithWord(" ; ----- immediate array: ", word);
+
+        // Add the word to the dictionary as an array value
+        d.addWord(word.c_str(), nullptr, nullptr, nullptr, nullptr);
+        d.setData(arraySize); // Set the value
+        auto dataAddress = d.get_data_ptr();
+        d.setType(ForthWordType::ARRAY); // value array type
+        d.allot(arraySize*8); // create space in dictionary for the array of ints, floats, pointers etc
+
+        a.comment(" ; ----- return content of indexed element");
+
+        auto index_error = a.newLabel();
+        asmjit::x86::Gp base = asmjit::x86::rax;
+        asmjit::x86::Gp index = asmjit::x86::rbx;
+        asmjit::x86::Gp result = asmjit::x86::rcx;
+
+        popDS(index);
+        a.cmp(index, arraySize);
+        a.jae(index_error);
+
+        a.mov(base, dataAddress+8); // first element is size of array
+        a.shl(index, 3); // always * 8
+        a.add(base, index);
+        // load result with contents of base
+        a.mov(result, asmjit::x86::ptr(base));
+        pushDS(result);
+        a.ret();
+
+        a.comment("; throw error - if array index out of bounds");
+        a.bind(index_error);
+        a.sub(asmjit::x86::rsp, 40);
+        a.call(throw_array_index_error);
+        a.add(asmjit::x86::rsp, 40);
+
+        a.ret();
+
+        ForthFunction compiledFunc = endGeneration();
+        d.setCompiledFunction(compiledFunc);
+        jc.pos_last_word = pos;
+    }
+
 
     // immediate value, runs when value is called.
     // 10 VALUE fred
@@ -917,6 +1006,45 @@ public:
 
         a.comment(" ; ----- fetch value");
         loadDS(dataAddress);
+        a.ret();
+
+        ForthFunction compiledFunc = endGeneration();
+        d.setCompiledFunction(compiledFunc);
+        jc.pos_last_word = pos;
+    }
+
+
+
+    // immediate value, runs when value is called.
+    // 10.0 FVALUE fred
+    static void genImmediateFvalue()
+    {
+        const auto& words = *jc.words;
+        size_t pos = jc.pos_next_word + 1;
+
+        std::string word = words[pos];
+        jc.word = word;
+
+
+        // Pop the initial value from the data stack
+        auto initialValue = sm.popDS();
+        //printf("initialValue: %llu\n", initialValue);
+        jc.resetContext();
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("entryFunction: Assembler not initialized");
+        }
+        auto& a = *jc.assembler;
+        commentWithWord(" ; ----- immediate value: ", word);
+        // Add the word to the dictionary as a value
+        d.addWord(word.c_str(), nullptr, nullptr, nullptr, nullptr);
+        d.setData(initialValue); // Set the value
+        auto dataAddress = d.get_data_ptr();
+        d.setType(ForthWordType::FLOATVALUE); // value type, capture the intention.
+
+        a.comment(" ; ----- fetch value");
+        loadDS(dataAddress); // DS is also used for floats
+
         a.ret();
 
         ForthFunction compiledFunc = endGeneration();

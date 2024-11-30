@@ -102,6 +102,9 @@ and track the current execution context.
 The register allocated to DS is R15.
 The register allocated to RS is R14.
 The register allocated to LS is R13.
+The register allocated to SS is R12.
+
+DS is used for ints and floats.
 
 These are used from C and FORTH code to access the stacks.
 

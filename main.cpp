@@ -195,9 +195,13 @@ void add_words()
             nullptr);
 
 
-    d.addWord("sprint", JitGenerator::genPrint, JitGenerator::build_forth(JitGenerator::genPrint), nullptr, nullptr);
+    d.addWord("s.", JitGenerator::genPrint, JitGenerator::build_forth(JitGenerator::genPrint), nullptr, nullptr);
 
+    // immediate words that create variables
     d.addInterpretOnlyImmediate("value", nullptr, nullptr, nullptr, JitGenerator::genImmediateValue);
+    d.addInterpretOnlyImmediate("fvalue", nullptr, nullptr, nullptr, JitGenerator::genImmediateFvalue);
+    d.addInterpretOnlyImmediate("array", nullptr, nullptr, nullptr, JitGenerator::genImmediateArray);
+
     d.addInterpretOnlyImmediate("string", nullptr, nullptr, nullptr, JitGenerator::genImmediateStringValue);
     d.addInterpretOnlyImmediate("constant", nullptr, nullptr, nullptr, JitGenerator::genImmediateConstant);
     d.addInterpretOnlyImmediate("variable", nullptr, nullptr, nullptr, JitGenerator::genImmediateVariable);
