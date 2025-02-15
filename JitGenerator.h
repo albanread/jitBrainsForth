@@ -1872,7 +1872,7 @@ public:
         return new_func;
     }
 
-    static void genCall(ForthFunction fn)
+    static void genCall2(ForthFunction fn)
     {
         if (!jc.assembler)
         {
@@ -1885,6 +1885,19 @@ public:
         a.call(asmjit::x86::rax);
     }
 
+
+    static void genCall(ForthFunction fn)
+    {
+        if (!jc.assembler)
+        {
+            throw std::runtime_error("gen_call: Assembler not initialized");
+        }
+        auto& a = *jc.assembler;
+
+        a.comment(" ; ----- gen_call");
+
+        a.call(asmjit::imm(fn));
+    }
 
     // Executable function pointer
 

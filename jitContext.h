@@ -36,6 +36,11 @@ public:
             code.reset();
             code.init(rt.environment());
 
+            asmjit::Section *dataSection;
+            code.newSection(&dataSection, ".data", SIZE_MAX, asmjit::SectionFlags::kNone, 8);
+            // Attach the assembler to the CodeHolder
+            assembler = new asmjit::x86::Assembler(&code);
+
             //
             // // Recreate the assembler with the new code holder
             // //delete assembler;
@@ -43,6 +48,7 @@ public:
             if (logging)
             {
                 code.setLogger(&logger);
+                logger.addFlags(asmjit::FormatFlags::kMachineCode);
             }
         }
     }
