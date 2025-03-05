@@ -1,4 +1,4 @@
-# jitBrainsForth
+# jitBrainsForth Windows
 
 Forth Jit written largely by the JetBrains AI.
 I am going to say 'in cooperation with from now on' since no AI I have used
@@ -13,3 +13,5 @@ Current Status Compiles and Runs, under development.
 The project does not accept pull requests.
 
 There is also a MacOS intel version of this program.
+
+The MacOS macOS? version has leaped ahead, it will be ported back to Windows again later.
